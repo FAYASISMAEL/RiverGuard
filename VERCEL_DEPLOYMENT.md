@@ -75,6 +75,10 @@ On Vercel, each photo is limited to **4 MiB** to leave multipart overhead below 
 
 Existing local SQLite reports and the `uploads` directory remain untouched. With no `VERCEL=1` setting, the app defaults to the original local database and filesystem storage. Install dependencies with `python -m pip --python .venv/Scripts/python.exe install -r backend/requirements.txt`, then run the usual uvicorn and Vite commands.
 
+## Render deployment
+
+Keep Render's Root Directory set to the repository root (`.`). Use `pip install -r requirements.txt` as the build command and `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT` as the start command. This is a FastAPI ASGI application. The checked-in `render.yaml` contains the same configuration.
+
 A new hosted database starts empty. Deploying source code does **not** transfer existing local reports/photos. Do not upload the SQLite file to the serverless filesystem: it would not provide durable data. Data migration is a separate operation; retain a backup of the local database and photos if you need those records online.
 
 ## Troubleshooting

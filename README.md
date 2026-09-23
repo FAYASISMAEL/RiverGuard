@@ -12,6 +12,8 @@ From `D:\MyWorks\RiverGuard`, start the backend:
 .venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
+For Render, keep the Root Directory at the repository root and use `uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT`. This is a FastAPI ASGI service, so configure Render with Uvicorn.
+
 In a second terminal:
 
 ```powershell
