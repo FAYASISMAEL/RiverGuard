@@ -13,7 +13,8 @@ from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from . import config
-from .database import engine as db_engine, get_db, initialize_database
+from . import database
+from .database import get_db, get_db_optional, initialize_database
 from .storage import save_evidence, evidence_exists, evidence_response
 from .models import Report, Alert, now
 from .schemas import Location, ReportInput, StatusInput, AlertInput
@@ -38,8 +39,10 @@ def initialize_runtime(application: FastAPI, force: bool = False):
         try:
             initialize_database()
             application.state.database_available = True
-        except SQLAlchemyError:
+        except Exception:
             logging.exception('Database could not be initialized. Database-backed routes are unavailable.')
+        application.state.persistence_mode = config.PERSISTENCE_MODE
+        application.state.storage_mode = 'blob' if config.PERSISTENT_STORAGE else ('temp-local' if config.IS_VERCEL else 'local')
         application.state.initialized = True
 
 @asynccontextmanager
@@ -49,7 +52,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        db_engine.dispose()
+        database.engine.dispose()
 
 app = FastAPI(title='RiverGuard API', version='1.0.0', lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_credentials=True, allow_methods=['GET','POST','PATCH'], allow_headers=['Content-Type','X-CSRF-Token'])
@@ -92,7 +95,8 @@ async def proximity_error(request, exc):
 async def database_error(request, exc):
     from fastapi.responses import JSONResponse
     logging.error('Database operation failed', exc_info=(type(exc), exc, exc.__traceback__))
-    return JSONResponse(status_code=503, content={'detail':'We could not save or load this information right now. Please try again.'})
+    message = 'Persistence service is temporarily unavailable. Map and river analysis remain available.'
+    return JSONResponse(status_code=503, content={'success':False, 'code':'DATABASE_UNAVAILABLE', 'message':message, 'detail':message})
 
 @app.get('/api/config')
 def public_config():
@@ -100,7 +104,18 @@ def public_config():
 
 @app.get('/api/health')
 def health():
-    return {'status':'ok' if app.state.river else 'degraded', 'datasets_available':app.state.river is not None, 'authority_mode':'admin-login'}
+    map_available = app.state.river is not None
+    database_available = getattr(app.state, 'database_available', False)
+    return {
+        'status': 'ok' if map_available and database_available else 'degraded',
+        'datasets_available': map_available,
+        'map_service': 'available' if map_available else 'unavailable',
+        'river_engine': 'available' if map_available else 'unavailable',
+        'database': 'available' if database_available else 'unavailable',
+        'storage': getattr(app.state, 'storage_mode', 'unknown'),
+        'persistence_mode': getattr(app.state, 'persistence_mode', config.PERSISTENCE_MODE),
+        'authority_mode':'admin-login'
+    }
 
 @app.get('/api/map-metadata')
 def map_metadata(gis=Depends(river)):
@@ -114,9 +129,15 @@ def map_layer(layer: str, gis=Depends(river)):
     return gis.datasets[key]
 
 @app.post('/api/analyze')
-def analyze(payload: Location, db=Depends(get_db), gis=Depends(river)):
+def analyze(payload: Location, db=Depends(get_db_optional), gis=Depends(river)):
     snap = gis.snap_engine.snap(payload.latitude, payload.longitude)
-    return gis.analyze(payload.latitude, payload.longitude, repeats(db, snap['segment_id']))
+    repeat_count = 0
+    if db is not None:
+        try:
+            repeat_count = repeats(db, snap['segment_id'])
+        except SQLAlchemyError:
+            logging.warning('Report history unavailable; analyzing without repeat history.')
+    return gis.analyze(payload.latitude, payload.longitude, repeat_count)
 
 @app.post('/api/uploads', status_code=201)
 def upload(file: UploadFile, db=Depends(get_db)):

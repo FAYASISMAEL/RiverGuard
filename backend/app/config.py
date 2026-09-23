@@ -7,19 +7,21 @@ load_dotenv(ROOT / '.env')
 IS_VERCEL = os.getenv('VERCEL') == '1'
 DATA_DIR = Path(os.getenv('DATA_DIR', str(ROOT / 'data'))).resolve()
 UPLOAD_DIR = Path(os.getenv('UPLOAD_DIR', str(ROOT / 'uploads'))).resolve()
-DATABASE_URL = next((os.getenv(key) for key in ('DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRISMA_URL', 'NEON_DATABASE_URL') if os.getenv(key)), f'sqlite:///{ROOT / "riverguard.db"}')
+DATABASE_URL = next((os.getenv(key) for key in ('DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRISMA_URL', 'NEON_DATABASE_URL') if os.getenv(key)), '')
+DATABASE_CONFIGURED = bool(DATABASE_URL)
+if not DATABASE_URL:
+    DATABASE_URL = f'sqlite:///{ROOT / "data" / "riverguard.db"}' if not IS_VERCEL else 'sqlite:////tmp/riverguard.db'
 if DATABASE_URL.startswith(('postgres://', 'postgresql://')):
     DATABASE_URL = 'postgresql+psycopg://' + DATABASE_URL.split('://', 1)[1]
 STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'vercel_blob' if IS_VERCEL else 'local')
 if STORAGE_BACKEND not in {'local', 'vercel_blob'}:
     raise RuntimeError('STORAGE_BACKEND must be local or vercel_blob.')
 PERSISTENT_DATABASE = DATABASE_URL.startswith('postgresql+psycopg://')
-if IS_VERCEL and not PERSISTENT_DATABASE:
-    DATABASE_URL = 'sqlite:////tmp/riverguard-fallback.db'
-PERSISTENT_STORAGE = IS_VERCEL and STORAGE_BACKEND == 'vercel_blob'
+PERSISTENCE_MODE = 'postgres' if PERSISTENT_DATABASE else ('sqlite-temp' if IS_VERCEL else 'sqlite-local')
+BLOB_READ_WRITE_TOKEN = os.getenv('BLOB_READ_WRITE_TOKEN', '')
+PERSISTENT_STORAGE = IS_VERCEL and STORAGE_BACKEND == 'vercel_blob' and bool(BLOB_READ_WRITE_TOKEN)
 if IS_VERCEL and not PERSISTENT_STORAGE:
     UPLOAD_DIR = Path('/tmp/riverguard-uploads')
-BLOB_READ_WRITE_TOKEN = os.getenv('BLOB_READ_WRITE_TOKEN', '')
 # Leave room for multipart headers below Vercel's 4.5 MB request limit.
 MAX_IMAGE_BYTES = (4 if IS_VERCEL else 5) * 1024 * 1024
 PROXIMITY_M = float(os.getenv('RIVER_PROXIMITY_M', '500'))

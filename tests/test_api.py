@@ -16,7 +16,11 @@ def payload():
 
 def test_full_journey():
     with TestClient(app) as client:
-        assert client.get('/api/health').json()['datasets_available']
+        health = client.get('/api/health').json()
+        assert health['datasets_available']
+        assert health['map_service'] == 'available'
+        assert health['river_engine'] == 'available'
+        assert health['persistence_mode'] in ['postgres', 'sqlite-local', 'sqlite-temp']
         for layer in ['river','settlements','intakes','monitoring-points','local-bodies']:
             assert client.get('/api/map/'+layer).json()['features']
         analysis=client.post('/api/analyze',json={'latitude':10.1253,'longitude':76.418})
@@ -65,3 +69,13 @@ def test_invalid_inputs_and_missing_dataset():
         app.state.river=None
         assert client.get('/api/map/river').status_code==503
         assert client.get('/api/health').json()['status']=='degraded'
+
+
+def test_health_reports_degraded_map_only_mode(monkeypatch):
+    monkeypatch.setattr(app.state, 'database_available', False, raising=False)
+    monkeypatch.setattr(app.state, 'river', object(), raising=False)
+    from backend.app.main import health
+    result = health()
+    assert result['status'] == 'degraded'
+    assert result['map_service'] == 'available'
+    assert result['database'] == 'unavailable'

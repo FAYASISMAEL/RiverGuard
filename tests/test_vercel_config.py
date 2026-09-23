@@ -41,7 +41,7 @@ def test_vercel_accepts_neon_prisma_database_variable(monkeypatch):
 
 def test_vercel_uses_temporary_database_fallback_when_postgres_is_missing(monkeypatch):
     config = load_config(monkeypatch, VERCEL='1', DATABASE_URL='sqlite:////tmp/riverguard.db')
-    assert config.DATABASE_URL == 'sqlite:////tmp/riverguard-fallback.db'
+    assert config.DATABASE_URL == 'sqlite:////tmp/riverguard.db'
     assert config.PERSISTENT_DATABASE is False
 
 
