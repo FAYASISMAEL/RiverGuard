@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "W-04",
+        "name": "Aluva water intake",
+        "local_body": "Aluva Municipality",
+        "demo": true
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.408,
+          10.123
+        ]
+      }
+    }
+  ]
+}

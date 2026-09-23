@@ -1,0 +1,75 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "L-01",
+        "name": "Aluva Municipality",
+        "demo": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              76.32,
+              10.08
+            ],
+            [
+              76.42,
+              10.08
+            ],
+            [
+              76.42,
+              10.17
+            ],
+            [
+              76.32,
+              10.17
+            ],
+            [
+              76.32,
+              10.08
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "L-02",
+        "name": "Kadungalloor Panchayat",
+        "demo": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              76.24,
+              10.08
+            ],
+            [
+              76.32,
+              10.08
+            ],
+            [
+              76.32,
+              10.17
+            ],
+            [
+              76.24,
+              10.17
+            ],
+            [
+              76.24,
+              10.08
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
