@@ -1,6 +1,5 @@
 import logging
 import os
-import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -11,13 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from . import config
 from .database import Base, engine as db_engine, get_db
 from .models import Report, Alert, now
 from .schemas import Location, ReportInput, StatusInput, AlertInput
 from .river_impact_engine import RiverImpactEngine
 from .river_impact_engine.snap_engine import ProximityError
-from .services import create_report, serialize, repeats, generate_alerts, event
+from .services import create_report, serialize, repeats, generate_alerts, event, change_status
+from .auth import require_admin as authority, router as auth_router
+from .admin import router as admin_router
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -34,7 +36,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         db_engine.dispose()
 
 app = FastAPI(title='RiverGuard API', version='1.0.0', lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=os.getenv('CORS_ORIGINS','http://localhost:5173,http://127.0.0.1:5173').split(','), allow_methods=['GET','POST','PATCH'], allow_headers=['Content-Type','X-Authority-Key'])
+app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_credentials=True, allow_methods=['GET','POST','PATCH'], allow_headers=['Content-Type','X-CSRF-Token'])
+app.include_router(auth_router)
+app.include_router(admin_router)
 config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount('/uploads', StaticFiles(directory=config.UPLOAD_DIR), name='uploads')
 
@@ -42,11 +46,6 @@ def river():
     if app.state.river is None:
         raise HTTPException(503, 'River datasets unavailable. Check DATA_DIR and restart the backend.')
     return app.state.river
-
-def authority(x_authority_key: str = Header(default='')):
-    key = os.getenv('AUTHORITY_API_KEY', '')
-    if key and not secrets.compare_digest(key, x_authority_key):
-        raise HTTPException(403, 'An authority key is required.')
 
 def find_report(db, report_id):
     report = db.get(Report, report_id)
@@ -59,9 +58,23 @@ async def proximity_error(request, exc):
     from fastapi.responses import JSONResponse
     return JSONResponse(status_code=422, content={'detail': str(exc)})
 
+@app.exception_handler(SQLAlchemyError)
+async def database_error(request, exc):
+    from fastapi.responses import JSONResponse
+    logging.error('Database operation failed', exc_info=(type(exc), exc, exc.__traceback__))
+    return JSONResponse(status_code=503, content={'detail':'We could not save or load this information right now. Please try again.'})
+
+@app.get('/api/config')
+def public_config():
+    return {'max_images_per_report':config.MAX_IMAGES_PER_REPORT,'max_image_bytes':5*1024*1024,'accepted_image_types':['image/jpeg','image/png','image/webp']}
+
 @app.get('/api/health')
 def health():
-    return {'status':'ok' if app.state.river else 'degraded', 'datasets_available':app.state.river is not None, 'authority_mode':'key' if os.getenv('AUTHORITY_API_KEY') else 'demo'}
+    return {'status':'ok' if app.state.river else 'degraded', 'datasets_available':app.state.river is not None, 'authority_mode':'admin-login'}
+
+@app.get('/api/map-metadata')
+def map_metadata(gis=Depends(river)):
+    return gis.metadata
 
 @app.get('/api/map/{layer}')
 def map_layer(layer: str, gis=Depends(river)):
@@ -93,9 +106,12 @@ async def upload(file: UploadFile):
 
 @app.post('/api/reports', status_code=201)
 def submit(payload: ReportInput, db=Depends(get_db), gis=Depends(river)):
-    if payload.image_url:
-        name = payload.image_url.removeprefix('/uploads/')
-        if payload.image_url != '/uploads/'+name or '/' in name or '\\' in name or not (config.UPLOAD_DIR/name).is_file():
+    images=list(dict.fromkeys(([payload.image_url] if payload.image_url else [])+payload.image_urls))
+    if len(images)>config.MAX_IMAGES_PER_REPORT:
+        raise HTTPException(422, f'Please attach no more than {config.MAX_IMAGES_PER_REPORT} images.')
+    for url in images:
+        name = url.removeprefix('/uploads/')
+        if url != '/uploads/'+name or '/' in name or '\\' in name or not (config.UPLOAD_DIR/name).is_file():
             raise HTTPException(422, 'Image must be uploaded first')
     return serialize(create_report(db, gis, payload))
 
@@ -113,15 +129,12 @@ def impact(report_id: str, db=Depends(get_db)):
     return {**r.impact, 'report_id':r.id, 'status':r.status}
 
 @app.patch('/api/reports/{report_id}/status', dependencies=[Depends(authority)])
-def status(report_id: str, payload: StatusInput, db=Depends(get_db)):
+def status(report_id: str, payload: StatusInput, db=Depends(get_db), admin=Depends(authority)):
     r = find_report(db, report_id)
-    allowed = {'UNVERIFIED':['UNDER REVIEW','VERIFIED','REJECTED'], 'UNDER REVIEW':['VERIFIED','REJECTED'], 'VERIFIED':['RESOLVED'], 'REJECTED':[], 'RESOLVED':[]}
-    if payload.status not in allowed[r.status]:
-        raise HTTPException(409, f'Cannot change {r.status} to {payload.status}')
-    r.status = payload.status
-    r.timeline = [*r.timeline, event('Authority review: '+payload.status, payload.note)]
-    db.commit()
-    return serialize(r)
+    try:
+        return serialize(change_status(db, r, payload.status, payload.note, admin.username))
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
 
 @app.get('/api/reports/{report_id}/alerts')
 def alerts(report_id: str, db=Depends(get_db)):
@@ -160,4 +173,5 @@ def hotspots(db=Depends(get_db)):
 
 @app.post('/api/demo', status_code=201)
 def demo(db=Depends(get_db), gis=Depends(river)):
-    return serialize(create_report(db, gis, ReportInput(latitude=10.1253, longitude=76.418, contamination_type='Industrial Discharge', description='DEMO: unusual dark discharge observed near the riverbank. Requires authority verification.', observed_at=now()-timedelta(minutes=15))))
+    point = gis.metadata.get('demo_location', {'latitude':10.1253, 'longitude':76.418})
+    return serialize(create_report(db, gis, ReportInput(**point, contamination_type='Industrial Discharge', description='DEMO: unusual dark discharge observed near the riverbank. Requires authority verification.', observed_at=now()-timedelta(minutes=15))))

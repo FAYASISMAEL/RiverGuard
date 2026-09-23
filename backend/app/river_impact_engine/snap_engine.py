@@ -15,6 +15,6 @@ class SnapEngine:
         snapped = line.interpolate(offset)
         distance = point.distance(snapped)
         if distance > self.threshold:
-            raise ProximityError('Selected location is outside the acceptable river proximity. Please verify the location.')
+            raise ProximityError('Selected location is too far from the mapped river. Please choose a location closer to the river.')
         lon, lat = self.inverse(snapped.x, snapped.y)
         return dict(segment_id=segment, latitude=lat, longitude=lon, snap_distance_m=round(distance, 1), offset_m=offset)

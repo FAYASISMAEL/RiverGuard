@@ -5,15 +5,16 @@
       "type": "Feature",
       "properties": {
         "id": "M-02",
-        "name": "Lower Periyar monitoring point",
-        "local_body": "Kadungalloor Panchayat",
-        "demo": true
+        "name": "Monitoring point M-02 (sample)",
+        "local_body": "Demo local jurisdiction",
+        "demo": true,
+        "segment_id": "OSM-164803758-20"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          76.28,
-          10.135
+          76.3569259160751,
+          10.11652823679006
         ]
       }
     }

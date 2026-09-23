@@ -5,15 +5,16 @@
       "type": "Feature",
       "properties": {
         "id": "S-01",
-        "name": "Aluva community",
-        "local_body": "Aluva Municipality",
-        "demo": true
+        "name": "Downstream community A (sample)",
+        "local_body": "Demo local jurisdiction",
+        "demo": true,
+        "segment_id": "OSM-164803758-0"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          76.353,
-          10.109
+          76.36634502974889,
+          10.11206823916684
         ]
       }
     },
@@ -21,15 +22,16 @@
       "type": "Feature",
       "properties": {
         "id": "S-02",
-        "name": "Kadungalloor community",
-        "local_body": "Kadungalloor Panchayat",
-        "demo": true
+        "name": "Downstream community B (sample)",
+        "local_body": "Demo local jurisdiction",
+        "demo": true,
+        "segment_id": "OSM-164803758-20"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          76.3,
-          10.123
+          76.33801357817545,
+          10.132186333138762
         ]
       }
     }

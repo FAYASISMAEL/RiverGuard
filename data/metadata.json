@@ -1,0 +1,34 @@
+{
+  "mode": "osm",
+  "label": "OpenStreetMap river geometry; demonstration assets",
+  "version": "osm-9f987e594965",
+  "source": "\u00a9 OpenStreetMap contributors",
+  "source_url": "https://www.openstreetmap.org/relation/11778217",
+  "license": "ODbL 1.0",
+  "retrieved_at": "2026-09-23T20:31:08.628625+00:00",
+  "segment_count": 62,
+  "coordinate_count": 5474,
+  "way_count": 58,
+  "components": 1,
+  "bounds": [
+    76.1628372,
+    9.2867093,
+    77.4047627,
+    10.461541
+  ],
+  "limitations": [
+    "Community-mapped centerlines, not an official organizer or hydrological survey.",
+    "Only source-connected river ways within the documented extract and the complete Periyar relation are included. Minor streams not present in the extract are not invented.",
+    "Source gaps, reservoir discontinuities and tidal flow uncertainty are retained. Analysis stops at missing connections.",
+    "Flow follows OSM way order; no inferred flow reversal or artificial connecting segments.",
+    "Settlements, intakes, monitoring points and local-body polygons remain clearly labelled demonstration assets."
+  ],
+  "demo_location": {
+    "latitude": 10.1200287,
+    "longitude": 76.379479
+  },
+  "outlet_boundary": {
+    "excluded_osm_way": 613007375,
+    "reason": "Edakochi Kayal belongs to the separate backwater network beyond the southern Periyar outlet. Excluding it prevents importing the Pamba, Manimala and Muvattupuzha basins."
+  }
+}

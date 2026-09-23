@@ -6,11 +6,12 @@ import {
   CircleMarker,
   Popup,
   LayersControl,
+  LayerGroup,
   useMapEvents,
   useMap,
 } from "react-leaflet";
 import { api } from "../services/api";
-import { geoJSON } from "leaflet";
+import { geoJSON, DomEvent } from "leaflet";
 const colors = {
   settlements: "#967047",
   intakes: "#3674b5",
@@ -26,7 +27,12 @@ function SelectPoint({ onSelect }) {
 function Move({ point }) {
   const map = useMap();
   useEffect(() => {
-    if (point) map.panTo([point.latitude, point.longitude], { animate: false });
+    if (point)
+      map.setView(
+        [point.latitude, point.longitude],
+        Math.max(14, map.getZoom()),
+        { animate: false },
+      );
   }, [point?.latitude, point?.longitude, map]);
   return null;
 }
@@ -90,7 +96,12 @@ export default function RiverMap({
       active = false;
     };
   }, []);
-  const result = impact || selected?.impact;
+  const candidate = impact || selected?.impact;
+  const result =
+    candidate?.dataset_version &&
+    candidate.dataset_version === layers?.river.version
+      ? candidate
+      : null;
   return (
     <div className={"map-shell " + (compact ? "compact" : "")}>
       {error && (
@@ -116,14 +127,44 @@ export default function RiverMap({
         />
         <SelectPoint onSelect={onSelect} />
         <Move point={point} />
-        <FitRoute report={selected} />
-        <FitNetwork data={layers?.river} active={!selected && !point} />
+        <FitRoute report={result && selected} />
+        <FitNetwork data={layers?.river} active={!result && !point} />
         <LayersControl position="topright">
           {layers && (
-            <LayersControl.Overlay checked name="Periyar river (demo)">
+            <LayersControl.Overlay checked name="Periyar river network">
               <GeoJSON
                 data={layers.river}
-                style={{ color: "#3493a9", weight: 5, opacity: 0.8 }}
+                smoothFactor={0}
+                style={(feature) => ({
+                  color: "#3493a9",
+                  weight: feature.properties.mainstem ? 4 : 2.5,
+                  opacity: 0.9,
+                })}
+                onEachFeature={(feature, layer) => {
+                  layer.on("add", () => {
+                    const element = layer.getElement();
+                    if (element) {
+                      element.dataset.segmentId = feature.properties.id;
+                      element.setAttribute(
+                        "aria-label",
+                        feature.properties.name + " " + feature.properties.id,
+                      );
+                    }
+                  });
+                  layer.options.bubblingMouseEvents = false;
+                  layer.on("click", (event) => {
+                    if (event.originalEvent)
+                      DomEvent.stopPropagation(event.originalEvent);
+                    onSelect?.(
+                      {
+                        latitude: event.latlng.lat,
+                        longitude: event.latlng.lng,
+                      },
+                      feature.properties,
+                    );
+                  });
+                  layer.bindTooltip(feature.properties.name || "Periyar River");
+                }}
               />
             </LayersControl.Overlay>
           )}
@@ -147,7 +188,7 @@ export default function RiverMap({
                 name={kind.replaceAll("-", " ")}
                 key={kind}
               >
-                <>
+                <LayerGroup>
                   {layers[kind].features.map((f) => (
                     <CircleMarker
                       key={f.properties.id}
@@ -170,11 +211,11 @@ export default function RiverMap({
                       </Popup>
                     </CircleMarker>
                   ))}
-                </>
+                </LayerGroup>
               </LayersControl.Overlay>
             ))}
           <LayersControl.Overlay checked name="Citizen observations">
-            <>
+            <LayerGroup>
               {reports.map((r) => (
                 <CircleMarker
                   key={r.id}
@@ -192,6 +233,7 @@ export default function RiverMap({
                     fillOpacity: 1,
                   }}
                   eventHandlers={{ click: () => onReport?.(r) }}
+                  bubblingMouseEvents={false}
                 >
                   <Popup>
                     <b>{r.contamination_type}</b>
@@ -208,13 +250,15 @@ export default function RiverMap({
                   </Popup>
                 </CircleMarker>
               ))}
-            </>
+            </LayerGroup>
           </LayersControl.Overlay>
           {result && (
             <LayersControl.Overlay checked name="Potential downstream path">
               <GeoJSON
                 key={JSON.stringify(result.snapped_location)}
                 data={result.downstream_path}
+                interactive={false}
+                smoothFactor={0}
                 style={{ color: "#ed754b", weight: 7, opacity: 0.9 }}
               />
             </LayersControl.Overlay>
@@ -227,10 +271,33 @@ export default function RiverMap({
             pathOptions={{ color: "#126c60", weight: 3, fillOpacity: 0.4 }}
           />
         )}
+        {result && (
+          <CircleMarker
+            center={[
+              result.snapped_location.latitude,
+              result.snapped_location.longitude,
+            ]}
+            radius={6}
+            pathOptions={{
+              color: "#ffffff",
+              weight: 2,
+              fillColor: "#126c60",
+              fillOpacity: 1,
+            }}
+          >
+            <Popup>
+              Snapped river location
+              <br />
+              {result.snapped_location.segment_id}
+              <br />
+              {result.snapped_location.snap_distance_m} m from selected point
+            </Popup>
+          </CircleMarker>
+        )}
       </MapContainer>
       <div className="map-caption">
-        <span className="live-dot" /> Illustrative Periyar network{" "}
-        <span>DEMO DATA</span>
+        <span className="live-dot" /> Periyar river network{" "}
+        <span>© OpenStreetMap</span>
       </div>
       <div className="map-legend">
         <span>

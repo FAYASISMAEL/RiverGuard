@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useAdmin } from "../services/adminAuth";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import { api, patch, post, dateLabel, assetUrl } from "../services/api";
 import { ImpactPanel, Badge, ErrorBox } from "../components/Shared";
 import RiverMap from "../map/RiverMap";
-export default function ReportDetail() {
+import EvidenceGallery from "../components/EvidenceGallery";
+export default function ReportDetail({ adminMode = false }) {
   const { id } = useParams(),
     [params] = useSearchParams();
   const [r, setReport] = useState(null),
@@ -11,7 +13,14 @@ export default function ReportDetail() {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [note, setNote] = useState("");
-  const authority = params.get("authority") === "1";
+  const { user } = useAdmin();
+  const [datasetVersion, setDatasetVersion] = useState(null);
+  useEffect(() => {
+    api("/map-metadata")
+      .then((m) => setDatasetVersion(m.version))
+      .catch(() => {});
+  }, []);
+  const authority = adminMode && !!user;
   async function load() {
     try {
       const [a, b] = await Promise.all([
@@ -25,8 +34,12 @@ export default function ReportDetail() {
     }
   }
   useEffect(() => {
-    load();
-  }, [id]);
+    if (authority)
+      post("/admin/reports/" + id + "/opened")
+        .then(() => load())
+        .catch((e) => setError(e.message));
+    else load();
+  }, [id, authority]);
   async function action(fn) {
     setBusy(true);
     setError("");
@@ -48,8 +61,11 @@ export default function ReportDetail() {
   };
   return (
     <main className="page">
-      <Link className="text-link" to={authority ? "/authority" : "/map"}>
-        ← {authority ? "Authority dashboard" : "Back to map"}
+      <Link
+        className="text-link"
+        to={authority ? "/admin/reports" : "/reports"}
+      >
+        ← {authority ? "Admin reports" : "Report history"}
       </Link>
       <ErrorBox error={error} />
       {!r ? (
@@ -72,19 +88,48 @@ export default function ReportDetail() {
           </div>
           <div className="detail-grid">
             <div>
+              {r.is_demo && (
+                <div className="notice">
+                  SAMPLE RECORD — a synthetic observation for demonstration.
+                </div>
+              )}
+              {(!r.impact.dataset_version ||
+                (datasetVersion &&
+                  r.impact.dataset_version !== datasetVersion)) && (
+                <div className="notice">
+                  Archived analysis from an earlier dataset version. Its
+                  original results are preserved below; the archived route is
+                  not drawn on the current river map.
+                </div>
+              )}
+              {r.case && (
+                <section className="card">
+                  <div className="eyebrow">CASE FILE</div>
+                  <h2>{r.case.id}</h2>
+                  <p>
+                    Original report: {r.case.original_report_id}
+                    <br />
+                    Citizen reported: {dateLabel(r.created_at)}
+                    <br />
+                    Review started: {dateLabel(r.case.review_started_at)}
+                  </p>
+                  <Badge value={r.status} />
+                </section>
+              )}
               <section className="card">
                 <div className="status-row">
                   <h2>What was observed</h2>
                   <Badge value={r.status} />
                 </div>
                 <p>{r.description}</p>
-                {r.image_url && (
-                  <img
-                    className="evidence"
-                    src={assetUrl(r.image_url)}
-                    alt="Citizen-submitted observation evidence"
-                  />
-                )}
+                <h3>{(r.image_urls || []).length} Evidence Images</h3>
+                <EvidenceGallery
+                  images={(r.image_urls || []).map((url, i) => ({
+                    id: url,
+                    src: assetUrl(url),
+                    name: "Evidence " + (i + 1),
+                  }))}
+                />
                 <p className="muted small">
                   Submitted location: {r.latitude.toFixed(6)},{" "}
                   {r.longitude.toFixed(6)}
@@ -97,7 +142,7 @@ export default function ReportDetail() {
               <RiverMap reports={[r]} selected={r} compact />
               {authority && (
                 <section className="card">
-                  <div className="eyebrow">AUTHORITY WORKSPACE</div>
+                  <div className="eyebrow">ADMIN WORKSPACE</div>
                   <h2>Review this observation</h2>
                   <label>
                     Review note
@@ -127,7 +172,7 @@ export default function ReportDetail() {
                         }
                       >
                         {status === "UNDER REVIEW"
-                          ? "Mark under review"
+                          ? "Accept / Start Review"
                           : status === "VERIFIED"
                             ? "Verify"
                             : status === "REJECTED"
@@ -141,6 +186,59 @@ export default function ReportDetail() {
                   )}
                 </section>
               )}
+              {authority &&
+                r.status === "VERIFIED" &&
+                ["HIGH", "CRITICAL"].includes(r.priority_level) && (
+                  <section className="card emergency-panel">
+                    <div className="eyebrow">
+                      {r.priority_level} PRIORITY · VERIFIED OBSERVATION
+                    </div>
+                    <h2>Emergency action panel</h2>
+                    <p>
+                      Actions are simulated. Each action is saved to this case’s
+                      timeline; no external notification is sent.
+                    </p>
+                    <div className="emergency-actions">
+                      {[
+                        "Generate Authority Alert",
+                        "Notify Water Intake",
+                        "Request Field Inspection",
+                        "Notify Monitoring Point",
+                        "Generate Community Advisory",
+                        "Mark Under Control",
+                      ].map((name) => (
+                        <button
+                          className="button secondary"
+                          disabled={busy}
+                          key={name}
+                          onClick={() =>
+                            action(() =>
+                              post("/admin/reports/" + id + "/actions", {
+                                action: name,
+                              }),
+                            )
+                          }
+                        >
+                          {name}
+                        </button>
+                      ))}
+                      <button
+                        className="button"
+                        disabled={busy}
+                        onClick={() =>
+                          action(() =>
+                            patch("/reports/" + id + "/status", {
+                              status: "RESOLVED",
+                              note,
+                            }),
+                          )
+                        }
+                      >
+                        Resolve Case
+                      </button>
+                    </div>
+                  </section>
+                )}
               <section className="card">
                 <div className="section-title">
                   <h2>

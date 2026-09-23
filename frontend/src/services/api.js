@@ -1,16 +1,23 @@
 const base = import.meta.env.VITE_API_URL || "";
+let csrfToken = "";
+export const setCsrfToken = (value) => {
+  csrfToken = value;
+};
 export const assetUrl = (path) => base + path;
+export const localDay = (value) => {
+  const d = new Date(/Z$|[+-]\d{2}:\d{2}$/.test(value) ? value : value + "Z");
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 export async function api(path, options = {}) {
   const response = await fetch(base + "/api" + path, {
     ...options,
+    credentials: "include",
     signal: options.signal || AbortSignal.timeout(20000),
     headers: {
       ...(options.body instanceof FormData
         ? {}
         : { "Content-Type": "application/json" }),
-      ...(sessionStorage.getItem("authorityKey")
-        ? { "X-Authority-Key": sessionStorage.getItem("authorityKey") }
-        : {}),
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       ...options.headers,
     },
   }).catch(() => {
@@ -19,6 +26,8 @@ export async function api(path, options = {}) {
     );
   });
   const data = await response.json().catch(() => null);
+  if (response.status === 401 && path !== "/admin/login")
+    window.dispatchEvent(new Event("admin-session-expired"));
   if (!response.ok)
     throw new Error(
       typeof data?.detail === "string"

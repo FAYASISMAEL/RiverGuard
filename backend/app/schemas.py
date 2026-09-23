@@ -16,6 +16,7 @@ class ReportInput(Location):
     reporter_name: str = Field(default='', max_length=100)
     contact: str = Field(default='', max_length=200)
     image_url: str | None = None
+    image_urls: list[str] = Field(default_factory=list, max_length=50)
 
     @field_validator('description')
     @classmethod

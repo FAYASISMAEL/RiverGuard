@@ -1,4 +1,134 @@
 @import "tailwindcss";
+/* Citizen history and the separate authenticated admin workspace. */
+.login-page {
+  max-width: 520px;
+  min-height: 72vh;
+  display: grid;
+  align-items: center;
+}
+.login-card {
+  padding: 36px;
+}
+.login-card .icon-tile {
+  width: fit-content;
+  margin-bottom: 20px;
+}
+.login-card h1 {
+  font-size: 36px;
+}
+.login-card .text-link {
+  display: block;
+  text-align: center;
+  margin-top: 22px;
+}
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+.history-card {
+  background: white;
+  border: 1px solid #dfe7da;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.history-card:hover {
+  box-shadow: 0 6px 25px #214c3814;
+}
+.history-image {
+  height: 145px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #edf2e9;
+  color: #93a38b;
+  position: relative;
+  font-size: 11px;
+}
+.history-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.history-copy {
+  padding: 22px;
+}
+.history-copy p {
+  font-size: 12px;
+}
+.history-copy .eyebrow {
+  letter-spacing: 1px;
+}
+.sample-label {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: #fffef4;
+  color: #867b50;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.case-reference {
+  color: #26765f;
+  font-weight: 600;
+}
+.admin-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid #e2e8dd;
+  background: white;
+  border-radius: 9px;
+  margin-bottom: 20px;
+}
+.admin-filters input,
+.admin-filters select {
+  min-width: 0;
+  width: 100%;
+}
+.admin-filters input:first-child {
+  grid-column: span 2;
+}
+.admin-stats {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1000px) {
+  .history-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .topbar nav {
+    overflow: auto;
+  }
+  .topbar nav a {
+    white-space: nowrap;
+  }
+  .admin-filters {
+    grid-template-columns: 1fr;
+  }
+  .admin-filters input:first-child {
+    grid-column: auto;
+  }
+  .filterbar input {
+    min-width: 0;
+  }
+}
 @theme {
   --font-sans: "Segoe UI", Arial, sans-serif;
 }

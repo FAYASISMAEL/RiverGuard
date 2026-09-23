@@ -35,25 +35,37 @@ export default function Home() {
             <span className="live-dot" /> CONNECTED BY THE PERIYAR
           </div>
           <h1>
-            A healthier river
+            Protect the river.
             <br />
-            starts with <em>us.</em>
+            Respond before
+            <br />
+            <em>the risk travels.</em>
           </h1>
           <p>
-            Report what you see. Understand what lies downstream. Help the right
-            people respond faster.
+            Report suspicious river contamination and understand which
+            downstream communities, water intakes, and monitoring points may be
+            affected.
           </p>
           <div className="hero-actions">
             <Link className="button" to="/report">
-              Report contamination <ArrowUpRight size={18} />
+              Report an Observation <ArrowUpRight size={18} />
             </Link>
             <Link className="button secondary" to="/map">
-              View live map <ArrowRight size={18} />
+              Explore River Map <ArrowRight size={18} />
             </Link>
           </div>
           <a className="text-link" href="#how-it-works">
             How it works ↓
           </a>
+          <div className="mini-workflow">
+            <span>01 Report</span>
+            <ArrowRight size={13} />
+            <span>02 Trace</span>
+            <ArrowRight size={13} />
+            <span>03 Assess</span>
+            <ArrowRight size={13} />
+            <span>04 Respond</span>
+          </div>
           <div className="trust-note">
             <ShieldCheck size={18} />
             <span>
@@ -64,7 +76,12 @@ export default function Home() {
           </div>
         </div>
         <div className="hero-map">
-          <RiverMap compact />
+          <RiverMap
+            compact
+            onSelect={(p) =>
+              navigate(`/map?lat=${p.latitude}&lon=${p.longitude}`)
+            }
+          />
           <div className="floating-note">
             <span className="icon-tile">
               <GitBranch size={22} />

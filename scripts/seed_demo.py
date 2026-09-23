@@ -11,7 +11,8 @@ from backend.app.config import DATA_DIR, PROXIMITY_M, CORRIDOR_M
 def main():
     Base.metadata.create_all(engine)
     gis=RiverImpactEngine(DATA_DIR, PROXIMITY_M, CORRIDOR_M)
-    examples=[('Industrial Discharge',10.1253,76.418),('Foam',10.15,76.3917),('Plastic / Solid Waste',10.145,76.265)]
+    point=gis.metadata.get('demo_location', {'latitude':10.1253,'longitude':76.418})
+    examples=[(category,point['latitude'],point['longitude']) for category in ['Industrial Discharge','Foam','Plastic / Solid Waste']]
     with SessionLocal() as db:
         for index,(category,latitude,longitude) in enumerate(examples):
             description=f'DEMO SEED {index+1}: illustrative {category.lower()} observation awaiting field verification.'

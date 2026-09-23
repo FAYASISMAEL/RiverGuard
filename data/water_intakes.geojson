@@ -5,15 +5,16 @@
       "type": "Feature",
       "properties": {
         "id": "W-04",
-        "name": "Aluva water intake",
-        "local_body": "Aluva Municipality",
-        "demo": true
+        "name": "Water intake W-04 (sample)",
+        "local_body": "Demo local jurisdiction",
+        "demo": true,
+        "segment_id": "OSM-164803758-0"
       },
       "geometry": {
         "type": "Point",
         "coordinates": [
-          76.408,
-          10.123
+          76.37486896266321,
+          10.11506874515797
         ]
       }
     }

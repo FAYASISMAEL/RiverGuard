@@ -1,152 +1,117 @@
-# RiverGuard · Periyar River Watch
+﻿# RiverGuard — Periyar River Watch
 
-A working citizen observation and downstream-impact prototype for the Periyar river contamination challenge. React, Vite, Tailwind, React Leaflet, FastAPI, SQLAlchemy, Shapely, PyProj, and NetworkX power the complete workflow. SQLite persists reports, analyses, alert states, and verification history.
-
-## Why this exists
-
-A report is more than a pin. An upstream observation may affect water intakes and communities farther down the river. RiverGuard snaps a reported location to a directed reach, follows connected downstream reaches, and explains which mapped assets may be exposed. Authorities independently review whether an observation is verified.
-
-**All bundled geography is illustrative demo data.** It resembles a lower-Periyar corridor but is not a surveyed river alignment, authoritative boundary dataset, or operational warning system. Alerts are simulated. Citizen observations are unverified by default. Priority and reporting frequency never confirm pollution.
+A citizen reporting and downstream-impact prototype built with React, Vite, Tailwind, React Leaflet, FastAPI, SQLAlchemy, Shapely, NetworkX and PyProj. GeoPandas validates the source datasets. Reports, evidence images, case IDs, timelines, priority snapshots, simulated alerts and admin actions persist in SQLite.
 
 ## Run locally
 
-Prerequisites: Python 3.11+ and Node.js 20.19+ (or 22.12+). Run backend commands from the repository root.
+From `D:\MyWorks\RiverGuard`, start the backend:
 
 ```powershell
-python -m venv .venv
-.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
-Copy-Item .env.example .env
 .venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-If the Windows Store Python environment cannot bootstrap pip, use the already installed host pip:
+In a second terminal:
 
 ```powershell
-python -m pip --python .venv/Scripts/python.exe install -r backend/requirements.txt
-```
-
-In another terminal:
-
-```powershell
-cd frontend
-npm ci
+cd D:\MyWorks\RiverGuard\frontend
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. API documentation: **http://127.0.0.1:8000/docs**. Linux/macOS use `.venv/bin/python` in place of `.venv/Scripts/python.exe` and `cp .env.example .env`.
+Open http://127.0.0.1:5173. Admin: http://127.0.0.1:5173/admin. API docs: http://127.0.0.1:8000/docs.
 
-The five GeoJSON files are checked in. To regenerate them, run `python scripts/generate_data.py`. Missing or malformed datasets put GIS endpoints into a controlled HTTP 503 state; `/api/health` reports `degraded` and explains dataset availability. Correct the files and restart the backend.
+Hackathon login is case-sensitive: **admin123 / admin@123**. Configure `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env`; restart the backend after changes. The public navigation has no Authority section. Admin sessions use database-backed opaque tokens in HttpOnly cookies, expire after eight hours by default, survive refresh and are revoked on logout. Mutations require the session and CSRF token. Use `COOKIE_SECURE=true` when deploying behind HTTPS.
 
-To populate a fresh database with three sample observations and their alerts, run `.venv/Scripts/python.exe -m scripts.seed_demo` from the root. It is safe to repeat; identical seeded examples are not duplicated.
+First-time installation (Python 3.11+, Node 20.19+ or 22.12+):
 
-### Frontend commands
-
-```sh
-npm run dev       # local UI, proxies /api and /uploads to localhost:8000
-npm run build     # production assets in frontend/dist
-npm run preview   # preview static build (configure API URL or reverse proxy first)
+```powershell
+python -m venv .venv
+python -m pip --python .venv/Scripts/python.exe install -r backend/requirements.txt
+# Only copy when .env does not already exist:
+Copy-Item .env.example .env
+cd frontend
+npm ci
 ```
 
-For a separately hosted UI, set `VITE_API_URL` to the backend origin at build time and configure `CORS_ORIGINS`. A same-origin reverse proxy should route `/api` and `/uploads` to FastAPI and other paths to the SPA, falling back to `index.html` for deep links.
+If Windows Store Python fails while bootstrapping pip, create the environment with `python -m venv --without-pip .venv`, then use the host-pip command above. Linux/macOS use `.venv/bin/python`.
 
-## Walk through the demo
+## Demonstrate the complete workflow
 
-1. On Overview, choose **Load Demo Scenario**. It creates a real persistent unverified report through the same service as citizen submissions.
-2. The report near R-18 is snapped to the river; the highlighted path follows R-18 through R-25 without entering the tributary backwards.
-3. Inspect two settlements, W-04 water intake, a monitoring station, and two local bodies. A first report scores **8 / HIGH**; repeated recent observations add 2 points.
-4. Open the full report to inspect generated alert messages and the timestamped timeline.
-5. Go to **Authority**, open the report, mark it under review, verify it, send a simulated alert, acknowledge it, and resolve the report.
-6. Open **Insights** to see reporting frequency, categories, recent activity, and frequently affected reaches.
+1. Open Live Map. Zoom into the lower Periyar near **10.1200287, 76.379479**. Use layer controls to hide overlapping observations if needed. Click the river, select **Dead Fish**, then choose **Report Observation**.
+2. Complete **Describe → Add Evidence → Select Location → Review → Submit**. Add three JPEG, PNG or WebP photos. Previews can be opened and removed. Default limit: five photos, 5 MB each; configure `MAX_IMAGES_PER_REPORT`.
+3. Submit. The report receives a permanent ID, an unverified status, a snapped location, downstream analysis, priority and generated simulated alerts. This sample location has downstream demonstration assets and scores HIGH for a first report; repeated recent reports can raise it to CRITICAL.
+4. Open History, search the report ID, and refresh to check persistence.
+5. Visit `/admin`, log in, open the report, inspect all three photos, choose **Accept / Start Review**, then **Verify**. A permanent case ID links to the original report.
+6. For verified HIGH/CRITICAL reports, use the Emergency action panel. Authority alerts, intake notifications, field inspections, monitoring notifications, community advisories and control actions save timeline events. Notifications are **simulated**, never sent externally.
+7. Resolve the case. Refresh and inspect the public History page: images, status, case ID, alerts and timeline remain available.
 
-For the real input workflow, use **Report an observation**: Describe → Locate → Review & submit. Add an optional JPEG/PNG/WebP image; click a point near the blue river (around longitude 76.418, latitude 10.1253 for the upstream example). GPS can be used if the browser supports it and the device is actually near this demo corridor. Faraway locations are rejected rather than silently snapped.
+The homepage **Load Demo Scenario** creates a labelled sample observation through the regular report service. To add labelled historical examples, run `.venv/Scripts/python.exe -m scripts.seed_history`. Seeds are idempotent. Browser tests also create clearly labelled sample records; they do not delete existing records.
 
-## Architecture
+## River provenance and limits
 
-```text
-Citizen / Authority
-       ↓
-React pages → replaceable RiverMap component (React Leaflet)
-       ↓
-FastAPI routes → validated Pydantic input → report service
-       ↓
-river_impact_engine
-   SnapEngine → FlowEngine → ImpactEngine → PriorityEngine
-       ↓
-SQLAlchemy models / SQLite + immutable startup-loaded GeoJSON
-       ↓
-Persisted impact + targeted simulated alerts + authority timeline
-```
+The active river is sourced from [OpenStreetMap Periyar relation 11778217](https://www.openstreetmap.org/relation/11778217) and source-connected river ways, retrieved 23 September 2026. Attribution: © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright).
 
-Repository layout:
+The bundled extract contains **58 source ways, 62 graph segments and 5,474 coordinate entries**, including all 25 main-relation ways, connected tributaries and coastal branches. The importer preserves original WGS84 coordinates and way order, splits at shared nodes, and adds no artificial connectors or offsets. A separate southern backwater connection is excluded to avoid importing unrelated Pamba, Manimala and Muvattupuzha catchments. Source JSON and detailed metadata are under `data/source/` and `data/metadata.json`.
 
-- `frontend/src/pages/`: overview, live map, 3-step report form, report details, insights, authority dashboard.
-- `frontend/src/map/`: the map adapter. Page-level state is plain data; replace the component for Google Maps or MapLibre without rewriting the engine.
-- `frontend/src/services/`: HTTP client, error normalization, optional authority-key header.
-- `backend/app/main.py`: routes, lifecycle, middleware, upload validation, authority dependency.
-- `backend/app/services.py`: report transactions, repeat detection, alert generation, public serialization.
-- `backend/app/river_impact_engine/`: four distinct GIS components plus startup orchestration.
-- `backend/app/models.py`, `database.py`, `schemas.py`: persistence and validation boundaries.
-- `data/`: replaceable GeoJSON assets, documented in [DATASET_SCHEMA.md](DATASET_SCHEMA.md).
-- `tests/`: engine and API integration tests. `frontend/tests/`: real browser journeys.
+This is community-mapped geometry, not an official river survey. Minor streams absent from the extract are not invented. Flow follows source way order; reservoir gaps, missing connections and tidal uncertainty are not resolved by this prototype. Analysis stops at missing connections. **Intakes, communities, monitors and local-body boundaries are synthetic demonstration assets**, not verified infrastructure. All alerts are simulated. Priority describes potential network exposure, not confirmed contamination, concentration, travel time or health risk.
 
-### Downstream correctness
+Old reports and their original snapshots remain intact. Archived routes from a different dataset version are not drawn on the current river. The schematic network is retained only in `tests/fixtures/demo`; `scripts/generate_data.py` regenerates those test fixtures, not the active map.
 
-WGS84 inputs are projected into UTM 43N (EPSG:32643) before measuring distances. The nearest valid segment is selected and the submitted point is projected onto that line. `RIVER_PROXIMITY_M` defaults to 500 m.
+To reproduce the source import, run `python scripts/import_osm.py`, then `.venv/Scripts/python.exe -m scripts.prepare_demo_assets`. Restart the backend after dataset changes. `scripts/download_osm_connected.py` is the optional network-fetch preparation step. See [DATASET_SCHEMA.md](DATASET_SCHEMA.md) before replacing datasets.
 
-The directed graph is built **once at backend startup** from downstream-node → upstream-node equality. Weighted traversal visits downstream-reachable segments only; a visited-distance map makes cycles finite. Missing links terminate that path safely. It supports tributaries, confluences, and distributaries. The starting segment is clipped at the snapped location. Distances account for that partial starting reach and take the shortest directed path at reconnections.
+## Routes and architecture
 
-Point assets are associated with their explicit `segment_id`, or the nearest river segment during startup. They must belong to a traversed reach, lie downstream of the observation on that reach, and be within `ASSET_CORRIDOR_M` (300 m default). This prevents simple circular-buffer matches to an upstream or nearby disconnected branch. Local-body polygons must intersect the downstream path; reported distance is the first intersection along a traversed path. Local bodies can overlap and be returned independently.
+Public routes: `/`, `/map`, `/report`, `/history`, `/reports/:id`, `/hotspots`, `/about`. Legacy `/reports` and `/insights` links continue to work. `/authority` redirects to admin login.
 
-Priority is a fixed, explainable snapshot at submission: intake +3; settlement +2; an existing non-rejected report on the same reach within 30 days +2; settlement/intake within 1.5 km downstream +2; monitor +1. Points are awarded once per condition, not per asset. LOW 0–2, MEDIUM 3–6, HIGH 7–9, CRITICAL 10. Existing analyses do not silently change when later reports arrive. Hotspot activity counts include rejected reports and are labelled as frequency, not confirmed contamination.
+Protected routes: `/admin/dashboard`, `/admin/reports`, `/admin/reports/:id`, `/admin/cases`. Admin lists support report/case/location/category/priority/date/segment/status searches and today's reports.
 
-### Persistence and state
+- `frontend/src/pages`: citizen workflow, history, maps, admin dashboard and case detail.
+- `frontend/src/services`: credentialed HTTP client, CSRF and session state.
+- `backend/app/auth.py`: login, persistent session, logout and authorization.
+- `backend/app/admin.py`: dashboard, report/case lists, recorded response actions.
+- `backend/app/services.py`: transactional report creation, snapshots, status transitions, timeline and alerts.
+- `backend/app/river_impact_engine`: Snap → Flow → Impact → Priority.
+- `backend/app/models.py`: existing Report/Alert tables plus additive CaseFile, ReportImage, AdminSession and AdminAction tables. Startup creates missing tables without resetting existing data. Legacy single-image references still work.
 
-Every submission, impact, and alert batch is committed in one transaction. Public endpoints omit reporter identity/contact. Uploads are decoded, size/dimension checked, re-encoded as JPEG with metadata removed, and stored under generated filenames. Optional uploads that are not subsequently attached may remain until a future retention job is added.
+WGS84 display coordinates are projected into UTM 43N for metric analysis. Snapping uses a 500 m default proximity threshold. Weighted directed traversal clips the first segment at the snapped point, handles cycles and computes shortest downstream distances. Assets must be associated with traversed reaches and pass the 300 m lateral corridor threshold; upstream and disconnected assets are excluded. Polygon distance uses the first downstream intersection.
 
-Observation transitions: UNVERIFIED → UNDER REVIEW / VERIFIED / REJECTED; UNDER REVIEW → VERIFIED / REJECTED; VERIFIED → RESOLVED. REJECTED and RESOLVED are terminal. Invalid transitions return 409. Alert transitions: Generated → Sent - Simulated → Acknowledged. Alert generation is idempotent for an existing batch; messages retain the observation status at generation, while the report displays current verification status.
+Priority conditions: intake +3, settlement +2, repeated non-rejected report on the segment in 30 days +2, intake/settlement within 1.5 km downstream +2, monitoring point +1. LOW 0–2, MEDIUM 3–6, HIGH 7–9, CRITICAL 10. Snapshots are not recalculated when later reports arrive.
 
-Without `AUTHORITY_API_KEY`, the application visibly operates in demo authority mode. Set a key and enter it in Authority access settings to restrict mutation endpoints. This is a prototype gate, not production identity management or per-authority attribution. Do not publicly deploy the unrestricted demo as an operational incident system.
+Status transitions preserve existing behavior: UNVERIFIED → UNDER REVIEW / VERIFIED / REJECTED; UNDER REVIEW → VERIFIED / REJECTED; VERIFIED → RESOLVED. REJECTED and RESOLVED are terminal. Every change appends a timeline event. Alert states: Generated → Sent - Simulated → Acknowledged.
 
-## API
+## API and errors
 
-Interactive request/response schemas are available at `/docs` and `/openapi.json`.
+Explore `/docs` for full schemas. Core endpoints:
 
-- `POST /api/reports`: validate and persist a report, impact, timeline, and generated alerts (201).
-- `GET /api/reports`, `GET /api/reports/{id}`: list / inspect observations.
-- `POST /api/uploads`: multipart `file`; JPEG, PNG, WebP; maximum 5 MB / 20 megapixels (201).
-- `POST /api/analyze`: `{ "latitude": 10.1253, "longitude": 76.418 }`; preview snap, route, assets, priority without persistence.
-- `GET /api/reports/{id}/impact`: persisted analysis with current report status.
-- `PATCH /api/reports/{id}/status`: `{ "status": "VERIFIED", "note": "Field review completed" }`; authority gate.
-- `GET /api/hotspots`: total and last-30-day counts per reported segment; LOW / MODERATE / HIGH FREQUENCY at 1 / 2 / 5 recent observations.
-- `GET /api/map/{layer}`: `river`, `settlements`, `intakes`, `monitoring-points`, `local-bodies`.
-- `POST /api/reports/{id}/alerts`: generate batch if missing; authority gate.
-- `GET /api/reports/{id}/alerts`: alert history and current delivery states.
-- `PATCH /api/alerts/{id}`: `{ "state": "Sent - Simulated" }` or `Acknowledged`; authority gate.
-- `POST /api/demo`: persist the built-in example using the standard report service (201).
-- `GET /api/health`: dataset readiness and authority mode.
+- `GET /api/config`, `/api/health`, `/api/map-metadata`, `/api/map/{layer}`.
+- `POST /api/analyze`: latitude/longitude; snap, downstream path, assets and priority preview.
+- `POST /api/uploads`: one multipart file; decoded, validated and re-encoded to strip metadata.
+- `POST /api/reports`: report fields plus `image_urls`; legacy `image_url` remains accepted.
+- `GET /api/reports`, `/api/reports/{id}`, `/api/reports/{id}/impact`, `/api/reports/{id}/alerts`, `/api/hotspots`.
+- `POST /api/admin/login`, `GET /api/admin/session`, `POST /api/admin/logout`.
+- Protected `GET /api/admin/dashboard`, `/api/admin/reports`, `/api/admin/cases`.
+- Protected `POST /api/admin/reports/{id}/opened`, `/api/admin/reports/{id}/actions`.
+- Protected `PATCH /api/reports/{id}/status`, `POST /api/reports/{id}/alerts`, `PATCH /api/alerts/{id}`.
 
-Validation errors use 422, missing resources 404, oversized images 413, denied authority actions 403, invalid transitions 409, unavailable GIS data 503. The UI shows loading/empty/error states and retains form input on submission failure.
+Validation returns 422, oversized evidence 413, missing resources 404, unauthenticated access 401, invalid CSRF 403, invalid state transitions 409, and unavailable datasets/database 503. UI errors are readable; input remains available after failed submission. Public report responses exclude reporter identity/contact. Images are public evidence, so avoid sensitive material.
 
-## Tests
+## Verification
 
 ```powershell
 .venv/Scripts/python.exe -m pytest tests -q
+.venv/Scripts/python.exe -m scripts.validate_dataset
 cd frontend
+npm run build
 npx playwright install chromium
-# Start both backend and frontend in other terminals first.
+# Keep both servers running:
 npm run test:e2e
 ```
 
-Backend tests use a temporary database and upload directory. Browser tests intentionally create sample reports in the running local database; run them against a disposable local instance. They exercise a map click, image upload, submission, impact display, simulated alert delivery and acknowledgment, authority review/verification/resolution, demo loading, and mobile layouts. Screenshots are written to `frontend/test-results/`.
+Backend tests use isolated temporary database/uploads. Browser tests use the running local database and create labelled sample records. Run them against a local demo instance. They cover three-photo submission, image removal/lightbox, persistence, login/logout/wrong credentials, protected routes, review/reject/verify/resolve, case creation, emergency actions, alert acknowledgment, history filters, responsive pages, upload errors and near/far map clicks. Screenshots are saved in `frontend/test-results/`.
 
-Engine cases cover an on-river report, nearby point, rejected distant location, tributary, pre-confluence location, multiple settlements, immediate intake, endpoint, disconnected segment, upstream exclusion, and finite cyclic traversal. API tests cover repeat scoring, hotspot counts, missing data, invalid images, unauthorized status changes, and timeline persistence.
+GeoPandas validates all five datasets as valid EPSG:4326 geometry. Source tests compare every rendered river coordinate/edge against the retained OSM source, retain the complete main relation, and exercise upstream, middle, tributary and coastal snapping/traversal.
 
-## Production upgrade path
+## Deployment notes
 
-Set `DATABASE_URL` for PostgreSQL after installing the matching driver; SQLAlchemy models isolate the storage interface. Add Alembic migrations before evolving a deployed schema. Introduce PostGIS geometry columns and indexed spatial queries behind the GIS/repository interfaces when replacing in-memory datasets. Install GeoPandas in the data preparation pipeline if organizer data needs reprojection or format conversion; runtime GeoJSON operations use Shapely and PyProj directly.
+Vite proxies `/api` and `/uploads` to port 8000 locally. For deployment, use a same-origin reverse proxy and SPA deep-link fallback; configure `VITE_API_URL` and `CORS_ORIGINS` if hosting separately. Basemap tiles require internet; local river overlays and analysis do not. Follow your tile provider's usage policy; `VITE_TILE_URL` can select another provider.
 
-Before operational deployment add identity/OIDC, role-based authority permissions, attributed immutable audit logs, rate limiting, paginated public feeds, upload quotas/retention and malware scanning, object storage, backup/restore, request monitoring, dataset version IDs, and calibrated organizer hydrology. Real SMS/email/push should use a queue and replace the simulated delivery adapter, with consent and delivery receipts. Add sensor ingestion as a separate service.
-
-`estimated_arrival_time` is present but null. A future velocity model can estimate travel time from directed distance / flow velocity, with uncertainty and explicit **Estimated Travel Time** labelling. Current results make no claim about concentration, dispersion, tidal reversal, actual arrival times, or risk to human health. Network topology alone cannot provide those conclusions.
-
-Base-map tiles need internet access; river/asset overlays and core analysis remain local. The default OpenStreetMap tile layer includes attribution and relies on normal browser caching; follow the [OSMF tile usage policy](https://operations.osmfoundation.org/policies/tiles/) and configure a suitable provider through `VITE_TILE_URL` before higher-volume deployment. Change attribution with your provider. The prototype uses in-memory graph traversal and linear nearest-reach lookup, suitable for the small demo; introduce STRtree/PostGIS indexes and bounded API pagination for large datasets. Tests and standard build commands are ready to be added to CI; Docker and cloud deployment can be layered on without changing the core engine.
+Before operational deployment, replace synthetic assets with verified data, validate hydrological directions, add institutional identity/roles, migrations, backups, upload quotas/retention, pagination and monitoring. SQLAlchemy permits a later PostgreSQL migration; GIS components can move behind PostGIS interfaces. Real notifications require a separate delivery adapter. No concentration or travel-time model is implemented.

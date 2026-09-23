@@ -4,7 +4,12 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from backend.app.main import app
 
-AUTH={'X-Authority-Key':'test-secret'}
+AUTH={}
+
+def login(client):
+    response=client.post('/api/admin/login',json={'username':'admin123','password':'admin@123'})
+    assert response.status_code==200
+    return {'X-CSRF-Token':response.json()['csrf_token']}
 
 def payload():
     return dict(latitude=10.1253,longitude=76.418,contamination_type='Industrial Discharge',description='Dark discharge observed from the riverbank.',observed_at=(datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat())
@@ -32,13 +37,14 @@ def test_full_journey():
         assert client.get('/api/reports/'+rid+'/impact').json()['status']=='UNVERIFIED'
         alerts=client.get('/api/reports/'+rid+'/alerts').json()
         assert len(alerts)==6
-        assert len(client.post('/api/reports/'+rid+'/alerts',headers=AUTH).json())==len(alerts)
-        assert client.patch('/api/reports/'+rid+'/status',json={'status':'VERIFIED'}).status_code==403
+        assert client.patch('/api/reports/'+rid+'/status',json={'status':'VERIFIED'}).status_code==401
+        auth=login(client)
+        assert len(client.post('/api/reports/'+rid+'/alerts',headers=auth).json())==len(alerts)
         for state in ['UNDER REVIEW','VERIFIED','RESOLVED']:
-            assert client.patch('/api/reports/'+rid+'/status',headers=AUTH,json={'status':state,'note':'Checked on site'}).json()['status']==state
-        assert client.patch('/api/reports/'+rid+'/status',headers=AUTH,json={'status':'REJECTED'}).status_code==409
+            assert client.patch('/api/reports/'+rid+'/status',headers=auth,json={'status':state,'note':'Checked on site'}).json()['status']==state
+        assert client.patch('/api/reports/'+rid+'/status',headers=auth,json={'status':'REJECTED'}).status_code==409
         for state in ['Sent - Simulated','Acknowledged']:
-            assert client.patch('/api/alerts/'+alerts[0]['id'],headers=AUTH,json={'state':state}).json()['state']==state
+            assert client.patch('/api/alerts/'+alerts[0]['id'],headers=auth,json={'state':state}).json()['state']==state
         assert len(client.get('/api/reports/'+rid).json()['timeline'])>=9
         repeated=client.post('/api/reports',json=payload()).json()
         assert repeated['priority_score']==10

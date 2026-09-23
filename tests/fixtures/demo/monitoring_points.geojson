@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "M-02",
+        "name": "Lower Periyar monitoring point",
+        "local_body": "Kadungalloor Panchayat",
+        "demo": true
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.28,
+          10.135
+        ]
+      }
+    }
+  ]
+}

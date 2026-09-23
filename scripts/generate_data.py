@@ -2,8 +2,8 @@
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1] / 'data'
-ROOT.mkdir(exist_ok=True)
+ROOT = Path(__file__).resolve().parents[1] / 'tests' / 'fixtures' / 'demo'
+ROOT.mkdir(parents=True, exist_ok=True)
 
 def feature(props, geometry):
     return {'type': 'Feature', 'properties': {**props, 'demo': True}, 'geometry': geometry}

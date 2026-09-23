@@ -1,0 +1,235 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R-18",
+        "upstream_node": "A",
+        "downstream_node": "B",
+        "name": "Illustrative Periyar",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.46,
+            10.13
+          ],
+          [
+            76.415,
+            10.125
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R-19",
+        "upstream_node": "B",
+        "downstream_node": "C",
+        "name": "Illustrative Periyar",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.415,
+            10.125
+          ],
+          [
+            76.38,
+            10.115
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R-20",
+        "upstream_node": "C",
+        "downstream_node": "D",
+        "name": "Illustrative Periyar",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.38,
+            10.115
+          ],
+          [
+            76.35,
+            10.108
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R-21",
+        "upstream_node": "D",
+        "downstream_node": "E",
+        "name": "Illustrative Periyar",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.35,
+            10.108
+          ],
+          [
+            76.325,
+            10.11
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R-22",
+        "upstream_node": "E",
+        "downstream_node": "F",
+        "name": "Illustrative Periyar",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.325,
+            10.11
+          ],
+          [
+            76.295,
+            10.125
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R-23",
+        "upstream_node": "F",
+        "downstream_node": "G",
+        "name": "Illustrative Periyar",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.295,
+            10.125
+          ],
+          [
+            76.265,
+            10.145
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R-24",
+        "upstream_node": "G",
+        "downstream_node": "H",
+        "name": "Illustrative Periyar",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.265,
+            10.145
+          ],
+          [
+            76.235,
+            10.165
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "R-25",
+        "upstream_node": "H",
+        "downstream_node": "SEA",
+        "name": "Illustrative Periyar",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.235,
+            10.165
+          ],
+          [
+            76.2,
+            10.18
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "T-01",
+        "upstream_node": "T",
+        "downstream_node": "C",
+        "name": "Demo tributary / isolated reach",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.395,
+            10.16
+          ],
+          [
+            76.38,
+            10.115
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "D-01",
+        "upstream_node": "X",
+        "downstream_node": "Y",
+        "name": "Demo tributary / isolated reach",
+        "demo": true
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            76.45,
+            10.19
+          ],
+          [
+            76.43,
+            10.185
+          ]
+        ]
+      }
+    }
+  ]
+}
