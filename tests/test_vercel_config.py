@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_config(monkeypatch, **env):
-    for key in ['VERCEL', 'DATABASE_URL', 'STORAGE_BACKEND', 'COOKIE_SECURE', 'VERCEL_URL', 'VERCEL_PROJECT_PRODUCTION_URL', 'VERCEL_BRANCH_URL']:
+    for key in ['VERCEL', 'DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRISMA_URL', 'NEON_DATABASE_URL', 'STORAGE_BACKEND', 'COOKIE_SECURE', 'VERCEL_URL', 'VERCEL_PROJECT_PRODUCTION_URL', 'VERCEL_BRANCH_URL']:
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
         monkeypatch.setenv(key, value)
@@ -31,6 +31,11 @@ def test_vercel_uses_persistent_database_secure_cookie_and_exact_origins(monkeyp
 
 def test_vercel_accepts_neon_pooled_database_variable(monkeypatch):
     config = load_config(monkeypatch, VERCEL='1', POSTGRES_URL='postgresql://test:password@localhost/db?sslmode=require')
+    assert config.DATABASE_URL == 'postgresql+psycopg://test:password@localhost/db?sslmode=require'
+
+
+def test_vercel_accepts_neon_prisma_database_variable(monkeypatch):
+    config = load_config(monkeypatch, VERCEL='1', POSTGRES_PRISMA_URL='postgresql://test:password@localhost/db?sslmode=require')
     assert config.DATABASE_URL == 'postgresql+psycopg://test:password@localhost/db?sslmode=require'
 
 
