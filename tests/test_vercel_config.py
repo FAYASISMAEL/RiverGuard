@@ -39,16 +39,22 @@ def test_vercel_accepts_neon_prisma_database_variable(monkeypatch):
     assert config.DATABASE_URL == 'postgresql+psycopg://test:password@localhost/db?sslmode=require'
 
 
-def test_vercel_uses_temporary_database_fallback_when_postgres_is_missing(monkeypatch):
-    config = load_config(monkeypatch, VERCEL='1', DATABASE_URL='sqlite:////tmp/riverguard.db')
-    assert config.DATABASE_URL == 'sqlite:////tmp/riverguard.db'
+def test_vercel_degrades_without_creating_temporary_database(monkeypatch):
+    config = load_config(monkeypatch, VERCEL='1')
+    assert config.DATABASE_URL == ''
     assert config.PERSISTENT_DATABASE is False
+    assert config.PERSISTENCE_MODE == 'unavailable'
 
 
-def test_vercel_uses_temporary_upload_fallback_when_blob_is_missing(monkeypatch):
+def test_vercel_limits_temporary_processing_to_tmp(monkeypatch):
     config = load_config(monkeypatch, VERCEL='1', DATABASE_URL='postgresql://test:password@localhost/db', STORAGE_BACKEND='local')
     assert config.UPLOAD_DIR == Path('/tmp/riverguard-uploads')
     assert config.PERSISTENT_STORAGE is False
+
+def test_relative_data_directory_does_not_depend_on_working_directory(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    config = load_config(monkeypatch, DATA_DIR='data')
+    assert config.DATA_DIR == ROOT/'data'
 
 
 def test_vercel_build_targets_full_repository_and_api_before_spa():

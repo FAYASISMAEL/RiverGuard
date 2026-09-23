@@ -35,6 +35,11 @@ export function ImpactPanel({ report, impact, details = true }) {
     <div className="impact-content">
       <div className="eyebrow">DOWNSTREAM IMPACT</div>
       <h2>{report?.contamination_type || "Location analysis"}</h2>
+      {data.warnings?.map((warning) => (
+        <p className="notice" key={warning}>
+          {warning}
+        </p>
+      ))}
       {report && (
         <>
           <div className="muted mono">{report.id}</div>

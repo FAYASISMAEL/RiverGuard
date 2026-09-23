@@ -7,6 +7,7 @@
   "functions": {
     "api/server.py": {
       "maxDuration": 60,
+      "includeFiles": "data/{*.geojson,metadata.json}",
       "excludeFiles": "{.venv/**,.git/**,.pytest_cache/**,.vscode/**,frontend/**,tests/**,scripts/**,uploads/**,data/source/**,**/*.db,**/.env,**/__pycache__/**}"
     }
   },

@@ -72,7 +72,8 @@ def test_invalid_inputs_and_missing_dataset():
 
 
 def test_health_reports_degraded_map_only_mode(monkeypatch):
-    monkeypatch.setattr(app.state, 'database_available', False, raising=False)
+    from backend.app import database
+    monkeypatch.setattr(database, 'database_status', lambda: 'unavailable')
     monkeypatch.setattr(app.state, 'river', object(), raising=False)
     from backend.app.main import health
     result = health()

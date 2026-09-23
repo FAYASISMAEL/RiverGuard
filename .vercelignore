@@ -13,3 +13,5 @@ uploads
 !.env.example
 data/source
 tests
+scripts
+render.yaml

@@ -10,7 +10,7 @@ import {
   useMapEvents,
   useMap,
 } from "react-leaflet";
-import { api } from "../services/api";
+import { mapApi } from "../services/api";
 import { geoJSON, DomEvent } from "leaflet";
 const colors = {
   settlements: "#967047",
@@ -84,7 +84,7 @@ export default function RiverMap({
         "intakes",
         "monitoring-points",
         "local-bodies",
-      ].map(async (key) => [key, await api("/map/" + key)]),
+      ].map(async (key) => [key, await mapApi("/map/" + key)]),
     )
       .then((items) => {
         if (active) setLayers(Object.fromEntries(items));

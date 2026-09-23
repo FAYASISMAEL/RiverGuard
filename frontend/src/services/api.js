@@ -1,15 +1,25 @@
-const base = import.meta.env.VITE_API_URL || "";
+// Same-origin production requests preserve admin cookies and avoid CORS drift.
+export const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/$/, "") + "/api"
+    : "/api")
+).replace(/\/$/, "");
+const assetOrigin = /^https?:\/\//.test(API_BASE)
+  ? new URL(API_BASE).origin
+  : "";
 let csrfToken = "";
 export const setCsrfToken = (value) => {
   csrfToken = value;
 };
-export const assetUrl = (path) => base + path;
+export const assetUrl = (path) =>
+  /^https?:\/\//.test(path) ? path : assetOrigin + path;
 export const localDay = (value) => {
   const d = new Date(/Z$|[+-]\d{2}:\d{2}$/.test(value) ? value : value + "Z");
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 export async function api(path, options = {}) {
-  const response = await fetch(base + "/api" + path, {
+  const response = await fetch(API_BASE + path, {
     ...options,
     credentials: "include",
     signal: options.signal || AbortSignal.timeout(20000),
@@ -57,6 +67,17 @@ export async function api(path, options = {}) {
     );
   }
   return data;
+}
+export async function mapApi(path) {
+  // Map reads are safe to retry. Never automatically retry uploads or mutations.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await api(path);
+    } catch (error) {
+      if (attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
 }
 export const post = (path, data) =>
   api(path, { method: "POST", body: JSON.stringify(data) });

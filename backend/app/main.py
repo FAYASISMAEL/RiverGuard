@@ -5,7 +5,9 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from io import BytesIO
 from uuid import uuid4
-from fastapi import FastAPI, Depends, HTTPException, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, Request
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from . import config
 from . import database
-from .database import get_db, get_db_optional, initialize_database
+from .diagnostics import log_failure
+from .database import get_db, get_db_optional
 from .storage import save_evidence, evidence_exists, evidence_response
 from .models import Report, Alert, now
 from .schemas import Location, ReportInput, StatusInput, AlertInput
@@ -33,17 +36,11 @@ def initialize_runtime(application: FastAPI, force: bool = False):
         application.state.river = None
         try:
             application.state.river = RiverImpactEngine(config.DATA_DIR, config.PROXIMITY_M, config.CORRIDOR_M)
+            logging.info('River data loaded; river graph initialized; map API ready')
         except Exception:
             logging.exception('Dataset could not be loaded. Correct DATA_DIR and restart.')
-        application.state.database_available = False
-        try:
-            initialize_database()
-            application.state.database_available = True
-        except Exception:
-            logging.exception('Database could not be initialized. Database-backed routes are unavailable.')
-        application.state.persistence_mode = config.PERSISTENCE_MODE
-        application.state.storage_mode = 'blob' if config.PERSISTENT_STORAGE else ('temp-local' if config.IS_VERCEL else 'local')
         application.state.initialized = True
+        logging.info('FastAPI initialized independently of database and Blob availability')
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -52,7 +49,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        database.engine.dispose()
+        if database.engine is not None:
+            database.engine.dispose()
 
 app = FastAPI(title='RiverGuard API', version='1.0.0', lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_credentials=True, allow_methods=['GET','POST','PATCH'], allow_headers=['Content-Type','X-CSRF-Token'])
@@ -63,7 +61,7 @@ app.include_router(admin_router)
 async def serverless_startup(request, call_next):
     # File-based ASGI runtimes may not send lifespan events. Initialize once per
     # warm instance without opening a database connection during build imports.
-    if config.IS_VERCEL and not getattr(app.state, 'initialized', False):
+    if not getattr(app.state, 'initialized', False):
         try:
             await run_in_threadpool(initialize_runtime, app)
         except Exception:
@@ -76,7 +74,7 @@ def evidence(name: str, db=Depends(get_db)):
     return evidence_response(name, db)
 
 def river():
-    if app.state.river is None:
+    if getattr(app.state, 'river', None) is None:
         raise HTTPException(503, 'River datasets unavailable. Check DATA_DIR and restart the backend.')
     return app.state.river
 
@@ -94,9 +92,29 @@ async def proximity_error(request, exc):
 @app.exception_handler(SQLAlchemyError)
 async def database_error(request, exc):
     from fastapi.responses import JSONResponse
-    logging.error('Database operation failed', exc_info=(type(exc), exc, exc.__traceback__))
+    log_failure('Database operation failed', exc)
     message = 'Persistence service is temporarily unavailable. Map and river analysis remain available.'
     return JSONResponse(status_code=503, content={'success':False, 'code':'DATABASE_UNAVAILABLE', 'message':message, 'detail':message})
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException):
+    code = 'REQUEST_REJECTED'
+    if exc.status_code == 503:
+        code = 'DATABASE_UNAVAILABLE' if 'Database unavailable' in str(exc.detail) else 'SERVICE_UNAVAILABLE'
+        if 'River datasets' in str(exc.detail):
+            code = 'RIVER_DATA_LOAD_FAILED'
+    return JSONResponse(status_code=exc.status_code, headers=exc.headers,
+        content={'success':False, 'error':code, 'message':str(exc.detail), 'detail':exc.detail})
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    details = [{'loc':list(e['loc']), 'msg':e['msg'], 'type':e['type']} for e in exc.errors()]
+    return JSONResponse(status_code=422, content={'success':False, 'error':'INVALID_INPUT', 'message':'Please check the supplied information.', 'detail':details})
+
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception):
+    log_failure('Unexpected backend error', exc)
+    return JSONResponse(status_code=500, content={'success':False, 'error':'INTERNAL_ERROR', 'message':'The service encountered an unexpected error. Please try again.', 'detail':'The service encountered an unexpected error. Please try again.'})
 
 @app.get('/api/config')
 def public_config():
@@ -104,16 +122,19 @@ def public_config():
 
 @app.get('/api/health')
 def health():
-    map_available = app.state.river is not None
-    database_available = getattr(app.state, 'database_available', False)
+    map_available = getattr(app.state, 'river', None) is not None
+    db_status = database.database_status()
+    storage = 'available' if (config.STORAGE_BACKEND == 'vercel_blob' and config.BLOB_READ_WRITE_TOKEN) or (not config.IS_VERCEL and config.STORAGE_BACKEND == 'local') else 'unavailable'
     return {
-        'status': 'ok' if map_available and database_available else 'degraded',
+        'status': 'ok' if map_available and db_status == 'connected' and storage == 'available' else 'degraded',
         'datasets_available': map_available,
+        'map': 'available' if map_available else 'unavailable',
         'map_service': 'available' if map_available else 'unavailable',
         'river_engine': 'available' if map_available else 'unavailable',
-        'database': 'available' if database_available else 'unavailable',
-        'storage': getattr(app.state, 'storage_mode', 'unknown'),
-        'persistence_mode': getattr(app.state, 'persistence_mode', config.PERSISTENCE_MODE),
+        'database': db_status,
+        'storage': storage,
+        'storage_check': 'configuration-only',
+        'persistence_mode': config.PERSISTENCE_MODE,
         'authority_mode':'admin-login'
     }
 
@@ -132,12 +153,18 @@ def map_layer(layer: str, gis=Depends(river)):
 def analyze(payload: Location, db=Depends(get_db_optional), gis=Depends(river)):
     snap = gis.snap_engine.snap(payload.latitude, payload.longitude)
     repeat_count = 0
+    history_available = db is not None
     if db is not None:
         try:
             repeat_count = repeats(db, snap['segment_id'])
         except SQLAlchemyError:
             logging.warning('Report history unavailable; analyzing without repeat history.')
-    return gis.analyze(payload.latitude, payload.longitude, repeat_count)
+            history_available = False
+    result = gis.analyze(payload.latitude, payload.longitude, repeat_count)
+    result['repeat_history_available'] = history_available
+    if not history_available:
+        result['warnings'] = ['Report history is unavailable. Priority excludes the repeat-report score.']
+    return result
 
 @app.post('/api/uploads', status_code=201)
 def upload(file: UploadFile, db=Depends(get_db)):

@@ -56,16 +56,16 @@ def test_blob_evidence_persists_without_local_files(monkeypatch, tmp_path):
             assert client.get(forged['image_urls'][0]).status_code == 404
 
 
-def test_blob_failure_falls_back_to_temporary_local_storage(monkeypatch, tmp_path):
+def test_blob_failure_does_not_claim_temporary_files_are_durable(monkeypatch, tmp_path):
     monkeypatch.setattr(config, 'STORAGE_BACKEND', 'vercel_blob')
     monkeypatch.setattr(config, 'BLOB_READ_WRITE_TOKEN', '')
     monkeypatch.setattr(config, 'UPLOAD_DIR', tmp_path)
     with TestClient(app) as client:
         response = client.post('/api/uploads', files={'file': ('photo.png', photo(), 'image/png')})
-        assert response.status_code == 201
+        assert response.status_code == 503
+        assert 'BLOB_READ_WRITE_TOKEN' in response.json()['detail']
         with SessionLocal() as db:
-            asset = db.get(UploadedAsset, response.json()['image_url'].split('/')[-1])
-            assert asset.storage == 'local'
+            assert db.query(UploadedAsset).count() == 0
 
 
 def test_deployment_upload_limit_is_exposed_and_enforced(monkeypatch):
