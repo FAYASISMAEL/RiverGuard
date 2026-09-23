@@ -27,7 +27,7 @@ In the Vercel project's **Storage** tab:
 2. Create/connect a **Vercel Blob store with Public access**. Confirm that the project receives `BLOB_READ_WRITE_TOKEN`. Photos are public evidence, matching the existing public galleries. This adapter does not support a private Blob store.
 	The app accepts `DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, or `NEON_DATABASE_URL` for the pooled Neon connection. These are common variables added by Neon/Vercel integrations. If Blob is not configured, uploads return a controlled 503 explanation. No photo is reported as saved to temporary storage. Map routes remain available.
 
-Connect storage to Production and, if previews are needed, to Preview too. Prefer a separate database/store for previews so testing does not modify production reports. If Vercel needs an initial import/deployment before showing Storage, create the project, connect storage, then redeploy. Without PostgreSQL, map endpoints can still serve the bundled river data, but report saving and admin sessions return a controlled DATABASE_UNAVAILABLE error. Map loading and downstream analysis do not require a database; analysis explicitly reports when repeat-report history is unavailable.
+Connect storage to Production and, if previews are needed, to Preview too. Prefer a separate database/store for previews so testing does not modify production reports. If Vercel needs an initial import/deployment before showing Storage, create the project, connect storage, then redeploy. Without reachable PostgreSQL, admin sessions and reports use SQLite at `/tmp/riverguard.db`. This temporary database belongs to one server instance and is not shared across instances or preserved across redeploys. PostgreSQL records are not copied into fallback. Map loading and downstream analysis do not require a database; analysis explicitly reports when repeat-report history is unavailable.
 
 ## 4. Set environment variables
 
@@ -61,7 +61,7 @@ Redeploy after connecting storage. On the first database-backed request, missing
 
 Verify:
 
-1. `/api/health` returns valid JSON. With all services configured it reports `status: ok`, `map: available`, `database: connected`, `storage: available`. Without optional services it reports `degraded`. Storage status checks configuration, not Blob credentials; confirm credentials with a real upload.
+1. `/api/health` returns valid JSON. With all services configured it reports `status: ok`, `map: available`, `database: postgres`, `storage: available`. Without optional services it reports `degraded`. Storage status checks configuration, not Blob credentials; confirm credentials with a real upload.
 2. `/api/config` returns a 4 MiB per-image limit and maximum five photos.
 3. `/map` loads the river.
 4. `/admin` logs in with your configured credentials and survives refresh.
@@ -73,13 +73,13 @@ On Vercel, each photo is limited to **4 MiB** to leave multipart overhead below 
 
 ## Local development and existing data
 
-Existing local SQLite reports and the `uploads` directory remain untouched. With no `VERCEL=1` setting, the app defaults to the original local database and filesystem storage. Install dependencies with `python -m pip --python .venv/Scripts/python.exe install -r backend/requirements.txt`, then run the usual uvicorn and Vite commands.
+Existing local SQLite reports and the `uploads` directory remain untouched. Without `VERCEL`, an explicit SQLite `DATABASE_URL` continues to select that file. With no database URL, fallback is `data/riverguard.db`. Keep `DATABASE_URL=sqlite:///./riverguard.db` to use an existing repository-root database. Photo storage is unchanged. Install dependencies with `python -m pip --python .venv/Scripts/python.exe install -r backend/requirements.txt`, then run the usual uvicorn and Vite commands.
 
 A new hosted database starts empty. Deploying source code does **not** transfer existing local reports/photos. Do not upload the SQLite file to the serverless filesystem: it would not provide durable data. Data migration is a separate operation; retain a backup of the local database and photos if you need those records online.
 
 ## Troubleshooting
 
-- **Health reports database unavailable or login returns DATABASE_UNAVAILABLE:** connect Neon and replace the copied local SQLite `DATABASE_URL`; redeploy.
+- **Health reports `database: sqlite-temp`:** admin and reports use temporary SQLite. Connect Neon and redeploy to restore shared persistence. Fallback records are not automatically migrated.
 - **Photo upload reports it could not store the photo:** confirm the Blob store is Public and its `BLOB_READ_WRITE_TOKEN` is connected to this deployment environment; inspect function logs.
 - **Untrusted request origin:** add the exact domain to `CORS_ORIGINS`, enable Vercel System Environment Variables, and redeploy.
 - **API routes return HTML:** confirm Root Directory is the repository root and root `vercel.json` is deployed. Remove any old frontend-only/external-backend rewrites.
@@ -112,6 +112,17 @@ $env:VERCEL_SIMULATION='1'
 npx playwright test tests/deployment.spec.js
 ```
 
-These checks cover desktop/mobile direct navigation and refresh, all river layers, database-independent analysis, controlled admin errors and recovery from a temporary map API failure. Normal workflows are separately covered by `journey.spec.js` with local persistence enabled.
+These checks cover desktop/mobile direct navigation and refresh, all river layers, database-independent analysis, successful admin login through temporary SQLite and recovery from a temporary map API failure. Normal workflows are separately covered by `journey.spec.js` with local persistence enabled.
 
-The health endpoint intentionally returns 200 with a `degraded` status when optional services are absent; persistence-dependent operations return 503 rather than pretending a report or session was saved. Legacy local images remain accessible even if they predate the upload registry table.
+Health returns `status: degraded`, `database: sqlite-temp`, `persistence: temporary`, and `admin/reports: available` when temporary SQLite is active. Failure of every database option returns `PERSISTENCE_UNAVAILABLE` (503). Legacy local images remain accessible even if they predate the upload registry table.
+
+
+## Database fallback behavior
+
+PostgreSQL is attempted first when configured. Missing/invalid configuration, connection refusal, authentication failure, or a timeout activates SQLite: `data/riverguard.db` locally or `/tmp/riverguard.db` on Vercel. Tables are created additively using existing models; case history remains in report timelines and admin action records.
+
+The active database is probed before database-backed requests. If PostgreSQL becomes unavailable, subsequent requests use fallback. A transaction failing after that probe returns a controlled error and is not replayed automatically, to avoid duplicate writes.
+
+Fallback stays selected for that instance's lifetime. A new instance tries PostgreSQL again. Temporary files and database-backed sessions can disappear on cold starts; requests reaching another instance may need a new login and cannot see the first instance's temporary reports. PostgreSQL remains necessary for reliable shared production data. Databases are not automatically merged or migrated.
+
+Photo storage is separate: Vercel uploads still require public Blob storage. Reports without photos and admin operations can use SQLite without Blob.

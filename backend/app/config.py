@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / '.env')
-IS_VERCEL = os.getenv('VERCEL') == '1'
+IS_VERCEL = bool(os.getenv('VERCEL'))
 def project_path(value, default):
     path = Path(value or default)
     return (path if path.is_absolute() else ROOT / path).resolve()
@@ -15,13 +15,12 @@ DATA_DIR = project_path(os.getenv('DATA_DIR'), ROOT / 'data')
 UPLOAD_DIR = Path('/tmp/riverguard-uploads') if IS_VERCEL else project_path(os.getenv('UPLOAD_DIR'), ROOT / 'uploads')
 DATABASE_URL = next((value for key in ('DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRISMA_URL', 'NEON_DATABASE_URL') if (value := os.getenv(key, '').strip())), '')
 DATABASE_CONFIGURED = bool(DATABASE_URL)
-if not DATABASE_URL:
-    DATABASE_URL = '' if IS_VERCEL else f'sqlite:///{ROOT / "riverguard.db"}'
+FALLBACK_DATABASE_PATH = Path('/tmp/riverguard.db') if IS_VERCEL else ROOT / 'data' / 'riverguard.db'
 if DATABASE_URL.startswith(('postgres://', 'postgresql://')):
     DATABASE_URL = 'postgresql+psycopg://' + DATABASE_URL.split('://', 1)[1]
 STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'vercel_blob' if IS_VERCEL else 'local')
 PERSISTENT_DATABASE = DATABASE_URL.startswith('postgresql+psycopg://') or (not IS_VERCEL and DATABASE_URL.startswith('sqlite'))
-PERSISTENCE_MODE = 'postgres' if DATABASE_URL.startswith('postgresql+psycopg://') else ('unavailable' if IS_VERCEL else 'sqlite-local')
+PERSISTENCE_MODE = 'postgres' if DATABASE_URL.startswith('postgresql+psycopg://') else ('sqlite-temp' if IS_VERCEL else 'sqlite-local')
 BLOB_READ_WRITE_TOKEN = os.getenv('BLOB_READ_WRITE_TOKEN', '') or os.getenv('BLOB_TOKEN', '')
 PERSISTENT_STORAGE = STORAGE_BACKEND == 'vercel_blob' and bool(BLOB_READ_WRITE_TOKEN)
 # Leave room for multipart headers below Vercel's 4.5 MB request limit.

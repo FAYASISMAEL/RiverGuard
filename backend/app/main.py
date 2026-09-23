@@ -93,14 +93,14 @@ async def proximity_error(request, exc):
 async def database_error(request, exc):
     from fastapi.responses import JSONResponse
     log_failure('Database operation failed', exc)
-    message = 'Persistence service is temporarily unavailable. Map and river analysis remain available.'
-    return JSONResponse(status_code=503, content={'success':False, 'code':'DATABASE_UNAVAILABLE', 'message':message, 'detail':message})
+    message = 'Report management is temporarily unavailable.'
+    return JSONResponse(status_code=503, content={'success':False, 'error':'PERSISTENCE_UNAVAILABLE', 'message':message, 'detail':message})
 
 @app.exception_handler(StarletteHTTPException)
 async def http_error(request: Request, exc: StarletteHTTPException):
     code = 'REQUEST_REJECTED'
     if exc.status_code == 503:
-        code = 'DATABASE_UNAVAILABLE' if 'Database unavailable' in str(exc.detail) else 'SERVICE_UNAVAILABLE'
+        code = 'PERSISTENCE_UNAVAILABLE' if exc.detail == 'Report management is temporarily unavailable.' else 'SERVICE_UNAVAILABLE'
         if 'River datasets' in str(exc.detail):
             code = 'RIVER_DATA_LOAD_FAILED'
     return JSONResponse(status_code=exc.status_code, headers=exc.headers,
@@ -126,7 +126,7 @@ def health():
     db_status = database.database_status()
     storage = 'available' if (config.STORAGE_BACKEND == 'vercel_blob' and config.BLOB_READ_WRITE_TOKEN) or (not config.IS_VERCEL and config.STORAGE_BACKEND == 'local') else 'unavailable'
     return {
-        'status': 'ok' if map_available and db_status == 'connected' and storage == 'available' else 'degraded',
+        'status': 'ok' if map_available and db_status in ('postgres', 'sqlite-local') and storage == 'available' else 'degraded',
         'datasets_available': map_available,
         'map': 'available' if map_available else 'unavailable',
         'map_service': 'available' if map_available else 'unavailable',
@@ -134,7 +134,10 @@ def health():
         'database': db_status,
         'storage': storage,
         'storage_check': 'configuration-only',
-        'persistence_mode': config.PERSISTENCE_MODE,
+        'persistence_mode': db_status,
+        'persistence': 'temporary' if db_status == 'sqlite-temp' else ('unavailable' if db_status == 'unavailable' else 'persistent'),
+        'admin': 'available' if db_status != 'unavailable' else 'unavailable',
+        'reports': 'available' if db_status != 'unavailable' else 'unavailable',
         'authority_mode':'admin-login'
     }
 

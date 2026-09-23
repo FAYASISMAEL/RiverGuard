@@ -39,11 +39,12 @@ def test_vercel_accepts_neon_prisma_database_variable(monkeypatch):
     assert config.DATABASE_URL == 'postgresql+psycopg://test:password@localhost/db?sslmode=require'
 
 
-def test_vercel_degrades_without_creating_temporary_database(monkeypatch):
+def test_vercel_configures_temporary_fallback(monkeypatch):
     config = load_config(monkeypatch, VERCEL='1')
     assert config.DATABASE_URL == ''
     assert config.PERSISTENT_DATABASE is False
-    assert config.PERSISTENCE_MODE == 'unavailable'
+    assert config.PERSISTENCE_MODE == 'sqlite-temp'
+    assert config.FALLBACK_DATABASE_PATH == Path('/tmp/riverguard.db')
 
 
 def test_vercel_limits_temporary_processing_to_tmp(monkeypatch):

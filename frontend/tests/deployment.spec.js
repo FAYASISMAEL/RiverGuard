@@ -38,7 +38,9 @@ test("degraded API gives JSON and database-independent analysis", async ({
   expect(health).toMatchObject({
     status: "degraded",
     map: "available",
-    database: "unavailable",
+    database: "sqlite-temp",
+    admin: "available",
+    reports: "available",
   });
   for (const layer of [
     "river",
@@ -55,12 +57,20 @@ test("degraded API gives JSON and database-independent analysis", async ({
     data: { latitude: 10.1200287, longitude: 76.379479 },
   });
   expect(analysis.ok()).toBe(true);
-  expect((await analysis.json()).repeat_history_available).toBe(false);
+  expect((await analysis.json()).repeat_history_available).toBe(true);
   await page.goto("/admin");
   await page.getByLabel("Username", { exact: true }).fill("admin123");
   await page.getByLabel("Password", { exact: true }).fill("admin@123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Database unavailable");
+  await expect(page).toHaveURL(/\/admin\/dashboard$/);
+  await page.reload();
+  await expect(page).toHaveURL(/\/admin\/dashboard$/);
+  for (const path of ["/admin/reports", "/admin/cases"]) {
+    await page.goto(path);
+    await page.reload();
+    await expect(page).toHaveURL(new RegExp(path + "$"));
+    await expect(page.locator(".admin-sidebar")).toBeVisible();
+  }
 });
 
 test("map retries a temporary layer error and recovers", async ({ page }) => {

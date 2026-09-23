@@ -14,7 +14,7 @@ Browser journeys create labelled sample records in the local database. Existing 
 
 Source geometry is community OpenStreetMap data, not an official hydrological survey. Missing minor waterways and tidal direction uncertainty remain documented in data/metadata.json. Impact assets are synthetic, and no external notifications are sent.
 
-## Vercel adaptation verification
+## Earlier Vercel adaptation verification
 
 - 40 backend tests passed, including Blob storage mocks, stable evidence references after restart, cloud configuration validation, upload limits, startup without ASGI lifespan events, and missing database/Blob services.
 - All 4 browser workflows and 3 API-error browser checks passed against the compiled SPA and real API with local persistence.
@@ -25,3 +25,14 @@ Source geometry is community OpenStreetMap data, not an official hydrological su
 - The initial development-server browser run failed because its esbuild worker had stopped. Vite was restarted; the full regression suite then passed against the compiled site.
 - An actual `vercel build --yes` was attempted but stopped before building: the CLI reported an invalid login token. An authenticated Vercel build, Linux runtime, deployed file inclusion/bundle size, live Neon connectivity, and real Blob uploads remain unverified. Run `npx vercel login`, then follow VERCEL_DEPLOYMENT.md to link, build, deploy, and perform the live checks.
 - Earlier live requests returned `FUNCTION_INVOCATION_FAILED`. The final live recheck of `/api/health` and `/api/map/river` at `river-guard-69sb.vercel.app` instead returned HTTP 404 `DEPLOYMENT_NOT_FOUND`. The Python runtime traceback has not been available, so the original deployed failure is not yet confirmed or verified fixed; the current project/deployment must also be located.
+
+
+## Admin SQLite fallback verification
+
+- 47 backend tests passed. Isolated subprocess tests cover no URL, invalid URL, PostgreSQL timeout/authentication failures, refused connections, and local fallback. Each exercises login, reports, review/verify/resolve/reject, history, map and analysis, and additive table reopening.
+- Provider selection and failover from an already-active PostgreSQL engine are covered with a mock. No live PostgreSQL provider was available for this run.
+- Six browser checks passed against the compiled SPA with Vercel mode and unreachable PostgreSQL: temporary SQLite login, dashboard/reports/cases refresh, mobile/desktop maps, bounded retries and API errors.
+- All four existing browser journeys also passed with local persistence, including multiple-photo uploads, admin case review, status updates, logout, responsive pages and river selection (10 browser checks total).
+- Production backend/API type checking with the project interpreter passed (zero errors/warnings), and frontend production build passed. A broader default-interpreter scan also reported existing development-script typing/import issues outside the production check.
+- Fallback health identifies `sqlite-temp` and temporary persistence. Photos still require Blob on Vercel. Session/report data is instance-local, not migrated from PostgreSQL, and not guaranteed across cold starts or deployments.
+- These are local simulations, not a new live Vercel deployment. The earlier Vercel authentication/deployment limitations remain unresolved.
