@@ -27,7 +27,7 @@ In the Vercel project's **Storage** tab:
 2. Create/connect a **Vercel Blob store with Public access**. Confirm that the project receives `BLOB_READ_WRITE_TOKEN`. Photos are public evidence, matching the existing public galleries. This adapter does not support a private Blob store.
 	The app accepts `DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, or `NEON_DATABASE_URL` for the pooled Neon connection. These are common variables added by Neon/Vercel integrations.
 
-Connect storage to Production and, if previews are needed, to Preview too. Prefer a separate database/store for previews so testing does not modify production reports. If Vercel needs an initial import/deployment before showing Storage, create the project, connect storage, then redeploy; APIs cannot start until the database is configured.
+Connect storage to Production and, if previews are needed, to Preview too. Prefer a separate database/store for previews so testing does not modify production reports. If Vercel needs an initial import/deployment before showing Storage, create the project, connect storage, then redeploy. Without PostgreSQL, map endpoints can still serve the bundled river data, but database-backed reports and admin sessions use a temporary fallback and are not persistent.
 
 ## 4. Set environment variables
 

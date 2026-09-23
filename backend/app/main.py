@@ -29,12 +29,17 @@ def initialize_runtime(application: FastAPI, force: bool = False):
     with _startup_lock:
         if not force and getattr(application.state, 'initialized', False):
             return
-        initialize_database()
         application.state.river = None
         try:
             application.state.river = RiverImpactEngine(config.DATA_DIR, config.PROXIMITY_M, config.CORRIDOR_M)
         except Exception:
             logging.exception('Dataset could not be loaded. Correct DATA_DIR and restart.')
+        application.state.database_available = False
+        try:
+            initialize_database()
+            application.state.database_available = True
+        except SQLAlchemyError:
+            logging.exception('Database could not be initialized. Database-backed routes are unavailable.')
         application.state.initialized = True
 
 @asynccontextmanager

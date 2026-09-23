@@ -13,8 +13,9 @@ if DATABASE_URL.startswith(('postgres://', 'postgresql://')):
 STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'vercel_blob' if IS_VERCEL else 'local')
 if STORAGE_BACKEND not in {'local', 'vercel_blob'}:
     raise RuntimeError('STORAGE_BACKEND must be local or vercel_blob.')
-if IS_VERCEL and not DATABASE_URL.startswith('postgresql+psycopg://'):
-    raise RuntimeError('Connect a PostgreSQL database and set DATABASE_URL before deploying to Vercel.')
+PERSISTENT_DATABASE = DATABASE_URL.startswith('postgresql+psycopg://')
+if IS_VERCEL and not PERSISTENT_DATABASE:
+    DATABASE_URL = 'sqlite:////tmp/riverguard-fallback.db'
 if IS_VERCEL and STORAGE_BACKEND != 'vercel_blob':
     raise RuntimeError('Vercel requires STORAGE_BACKEND=vercel_blob for persistent evidence.')
 BLOB_READ_WRITE_TOKEN = os.getenv('BLOB_READ_WRITE_TOKEN', '')
