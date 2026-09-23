@@ -29,6 +29,11 @@ def test_vercel_uses_persistent_database_secure_cookie_and_exact_origins(monkeyp
     assert 'https://unrelated.vercel.app' not in config.CORS_ORIGINS
 
 
+def test_vercel_accepts_neon_pooled_database_variable(monkeypatch):
+    config = load_config(monkeypatch, VERCEL='1', POSTGRES_URL='postgresql://test:password@localhost/db?sslmode=require')
+    assert config.DATABASE_URL == 'postgresql+psycopg://test:password@localhost/db?sslmode=require'
+
+
 def test_vercel_cannot_silently_use_ephemeral_sqlite(monkeypatch):
     with pytest.raises(RuntimeError, match='PostgreSQL'):
         load_config(monkeypatch, VERCEL='1', DATABASE_URL='sqlite:////tmp/riverguard.db')

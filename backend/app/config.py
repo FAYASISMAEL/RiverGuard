@@ -7,7 +7,7 @@ load_dotenv(ROOT / '.env')
 IS_VERCEL = os.getenv('VERCEL') == '1'
 DATA_DIR = Path(os.getenv('DATA_DIR', str(ROOT / 'data'))).resolve()
 UPLOAD_DIR = Path(os.getenv('UPLOAD_DIR', str(ROOT / 'uploads'))).resolve()
-DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{ROOT / "riverguard.db"}')
+DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL') or os.getenv('NEON_DATABASE_URL') or f'sqlite:///{ROOT / "riverguard.db"}'
 if DATABASE_URL.startswith(('postgres://', 'postgresql://')):
     DATABASE_URL = 'postgresql+psycopg://' + DATABASE_URL.split('://', 1)[1]
 STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'vercel_blob' if IS_VERCEL else 'local')

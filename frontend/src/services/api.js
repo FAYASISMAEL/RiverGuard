@@ -28,13 +28,34 @@ export async function api(path, options = {}) {
   const data = await response.json().catch(() => null);
   if (response.status === 401 && path !== "/admin/login")
     window.dispatchEvent(new Event("admin-session-expired"));
-  if (!response.ok)
-    throw new Error(
+  if (!response.ok || data === null) {
+    const detail =
       typeof data?.detail === "string"
         ? data.detail
-        : data?.detail?.map((x) => x.msg).join("; ") ||
-            "The server could not complete this request. Please try again.",
+        : Array.isArray(data?.detail)
+          ? data.detail.map((x) => x.msg).join("; ")
+          : "";
+    if (detail) throw new Error(detail);
+    if (
+      response.status === 404 ||
+      response.status === 405 ||
+      (response.ok && data === null)
+    )
+      throw new Error(
+        "The API route is unavailable. Check the deployment's root directory and API routing, then redeploy.",
+      );
+    if (response.status >= 500)
+      throw new Error(
+        `The backend is unavailable (HTTP ${response.status}). Check the server logs and database configuration, then try again.`,
+      );
+    if (response.status === 413)
+      throw new Error(
+        "This photo exceeds the server's upload limit. Choose a smaller image.",
+      );
+    throw new Error(
+      `The request failed (HTTP ${response.status}). Please try again.`,
     );
+  }
   return data;
 }
 export const post = (path, data) =>
