@@ -1,0 +1,15 @@
+.git
+.venv
+.pytest_cache
+.vscode
+**/__pycache__
+**/node_modules
+frontend/dist
+frontend/test-results
+uploads
+*.db
+.env
+.env.*
+!.env.example
+data/source
+tests

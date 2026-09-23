@@ -1,0 +1,12 @@
+# Runtime-only dependencies for the Vercel Python function.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+sqlalchemy>=2.0,<3
+shapely>=2.0,<3
+pyproj>=3.6,<4
+networkx>=3.3,<4
+python-multipart>=0.0.18
+pillow>=11
+python-dotenv>=1
+psycopg[binary]>=3.2,<4
+vercel==0.11.4

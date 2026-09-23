@@ -1,18 +1,20 @@
 import logging
-import os
+from threading import Lock
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from io import BytesIO
 from uuid import uuid4
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, Header
+from fastapi import FastAPI, Depends, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from . import config
-from .database import Base, engine as db_engine, get_db
+from .database import engine as db_engine, get_db, initialize_database
+from .storage import save_evidence, evidence_exists, evidence_response
 from .models import Report, Alert, now
 from .schemas import Location, ReportInput, StatusInput, AlertInput
 from .river_impact_engine import RiverImpactEngine
@@ -21,15 +23,24 @@ from .services import create_report, serialize, repeats, generate_alerts, event,
 from .auth import require_admin as authority, router as auth_router
 from .admin import router as admin_router
 
+_startup_lock = Lock()
+
+def initialize_runtime(application: FastAPI, force: bool = False):
+    with _startup_lock:
+        if not force and getattr(application.state, 'initialized', False):
+            return
+        initialize_database()
+        application.state.river = None
+        try:
+            application.state.river = RiverImpactEngine(config.DATA_DIR, config.PROXIMITY_M, config.CORRIDOR_M)
+        except Exception:
+            logging.exception('Dataset could not be loaded. Correct DATA_DIR and restart.')
+        application.state.initialized = True
+
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     """Initialize shared resources at startup and release them on shutdown."""
-    Base.metadata.create_all(db_engine)
-    application.state.river = None
-    try:
-        application.state.river = RiverImpactEngine(config.DATA_DIR, config.PROXIMITY_M, config.CORRIDOR_M)
-    except Exception:
-        logging.exception('Dataset could not be loaded. Correct DATA_DIR and restart.')
+    await run_in_threadpool(initialize_runtime, application, True)
     try:
         yield
     finally:
@@ -39,8 +50,22 @@ app = FastAPI(title='RiverGuard API', version='1.0.0', lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_credentials=True, allow_methods=['GET','POST','PATCH'], allow_headers=['Content-Type','X-CSRF-Token'])
 app.include_router(auth_router)
 app.include_router(admin_router)
-config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-app.mount('/uploads', StaticFiles(directory=config.UPLOAD_DIR), name='uploads')
+
+@app.middleware('http')
+async def serverless_startup(request, call_next):
+    # File-based ASGI runtimes may not send lifespan events. Initialize once per
+    # warm instance without opening a database connection during build imports.
+    if config.IS_VERCEL and not getattr(app.state, 'initialized', False):
+        try:
+            await run_in_threadpool(initialize_runtime, app)
+        except Exception:
+            logging.exception('Cloud startup failed')
+            return JSONResponse(status_code=503, content={'detail':'The service could not start. Please try again shortly.'})
+    return await call_next(request)
+
+@app.get('/uploads/{name}', include_in_schema=False)
+def evidence(name: str, db=Depends(get_db)):
+    return evidence_response(name, db)
 
 def river():
     if app.state.river is None:
@@ -66,7 +91,7 @@ async def database_error(request, exc):
 
 @app.get('/api/config')
 def public_config():
-    return {'max_images_per_report':config.MAX_IMAGES_PER_REPORT,'max_image_bytes':5*1024*1024,'accepted_image_types':['image/jpeg','image/png','image/webp']}
+    return {'max_images_per_report':config.MAX_IMAGES_PER_REPORT,'max_image_bytes':config.MAX_IMAGE_BYTES,'accepted_image_types':['image/jpeg','image/png','image/webp']}
 
 @app.get('/api/health')
 def health():
@@ -89,20 +114,21 @@ def analyze(payload: Location, db=Depends(get_db), gis=Depends(river)):
     return gis.analyze(payload.latitude, payload.longitude, repeats(db, snap['segment_id']))
 
 @app.post('/api/uploads', status_code=201)
-async def upload(file: UploadFile):
-    content = await file.read(5*1024*1024+1)
-    if len(content) > 5*1024*1024:
-        raise HTTPException(413, 'Image must be smaller than 5 MB')
+def upload(file: UploadFile, db=Depends(get_db)):
+    content = file.file.read(config.MAX_IMAGE_BYTES+1)
+    if len(content) > config.MAX_IMAGE_BYTES:
+        raise HTTPException(413, f'Image must be smaller than {config.MAX_IMAGE_BYTES // (1024*1024)} MB')
     try:
         with Image.open(BytesIO(content)) as picture:
             if picture.format not in ['JPEG','PNG','WEBP'] or picture.width*picture.height > 20_000_000:
                 raise ValueError()
             picture.load()
             name = uuid4().hex+'.jpg'
-            picture.convert('RGB').save(config.UPLOAD_DIR/name, 'JPEG', quality=85)
+            output = BytesIO()
+            picture.convert('RGB').save(output, 'JPEG', quality=85)
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
         raise HTTPException(422, 'Choose a valid JPEG, PNG or WebP image under 20 megapixels')
-    return {'image_url':'/uploads/'+name}
+    return {'image_url':save_evidence(name, output.getvalue(), db)}
 
 @app.post('/api/reports', status_code=201)
 def submit(payload: ReportInput, db=Depends(get_db), gis=Depends(river)):
@@ -110,8 +136,7 @@ def submit(payload: ReportInput, db=Depends(get_db), gis=Depends(river)):
     if len(images)>config.MAX_IMAGES_PER_REPORT:
         raise HTTPException(422, f'Please attach no more than {config.MAX_IMAGES_PER_REPORT} images.')
     for url in images:
-        name = url.removeprefix('/uploads/')
-        if url != '/uploads/'+name or '/' in name or '\\' in name or not (config.UPLOAD_DIR/name).is_file():
+        if not evidence_exists(url, db):
             raise HTTPException(422, 'Image must be uploaded first')
     return serialize(create_report(db, gis, payload))
 

@@ -33,6 +33,7 @@ export default function ReportForm() {
     }),
     [files, setFiles] = useState([]),
     [maximum, setMaximum] = useState(5),
+    [maxImageBytes, setMaxImageBytes] = useState(4 * 1024 * 1024),
     [point, setPoint] = useState(null),
     [impact, setImpact] = useState(null),
     [busy, setBusy] = useState(false),
@@ -40,7 +41,10 @@ export default function ReportForm() {
     [progress, setProgress] = useState("");
   useEffect(() => {
     api("/config")
-      .then((c) => setMaximum(c.max_images_per_report))
+      .then((c) => {
+        setMaximum(c.max_images_per_report);
+        setMaxImageBytes(c.max_image_bytes);
+      })
       .catch(() => {});
     if (params.has("lat") && params.has("lon")) {
       const latitude = Number(params.get("lat")),
@@ -107,10 +111,12 @@ export default function ReportForm() {
       incoming.some(
         (f) =>
           !["image/jpeg", "image/png", "image/webp"].includes(f.type) ||
-          f.size > 5 * 1024 * 1024,
+          f.size > maxImageBytes,
       )
     ) {
-      setError("Choose JPEG, PNG or WebP images, each under 5 MB.");
+      setError(
+        `Choose JPEG, PNG or WebP images, each under ${maxImageBytes / (1024 * 1024)} MB.`,
+      );
       return;
     }
     const additions = incoming.map((file) => {
@@ -277,7 +283,10 @@ export default function ReportForm() {
             <label className="upload">
               <Upload size={25} />
               <b>{files.length ? "Add more photos" : "Add evidence photos"}</b>
-              <span>JPEG, PNG or WebP · maximum 5 MB per image</span>
+              <span>
+                JPEG, PNG or WebP · maximum {maxImageBytes / (1024 * 1024)} MB
+                per image
+              </span>
               <input
                 aria-label="Evidence photos"
                 type="file"

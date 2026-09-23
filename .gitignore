@@ -5,6 +5,9 @@ __pycache__/
 .pytest_cache/
 *.db
 .env
+.env.local
+.env.*.local
+.vercel/
 uploads/
 test-results/
 data/source/api-cache/

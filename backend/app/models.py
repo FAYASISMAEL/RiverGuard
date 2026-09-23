@@ -34,6 +34,13 @@ class ReportImage(Base):
     image_url: Mapped[str] = mapped_column(String(200))
     position: Mapped[int] = mapped_column(Integer)
 
+class UploadedAsset(Base):
+    __tablename__ = 'uploaded_assets'
+    name: Mapped[str] = mapped_column(String(80), primary_key=True)
+    storage: Mapped[str] = mapped_column(String(20))
+    url: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
 class AdminAction(Base):
     __tablename__ = 'admin_actions'
     id: Mapped[str] = mapped_column(String(40), primary_key=True)

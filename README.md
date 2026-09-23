@@ -4,6 +4,8 @@ A citizen reporting and downstream-impact prototype built with React, Vite, Tail
 
 ## Run locally
 
+For the complete frontend **and** backend on one Vercel project, follow [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md). The repository now includes the Python entrypoint, same-domain routing, PostgreSQL support and Vercel Blob evidence storage. Set Vercel's Root Directory to the repository root, not `frontend`.
+
 From `D:\MyWorks\RiverGuard`, start the backend:
 
 ```powershell
