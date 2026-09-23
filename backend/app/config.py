@@ -16,8 +16,9 @@ if STORAGE_BACKEND not in {'local', 'vercel_blob'}:
 PERSISTENT_DATABASE = DATABASE_URL.startswith('postgresql+psycopg://')
 if IS_VERCEL and not PERSISTENT_DATABASE:
     DATABASE_URL = 'sqlite:////tmp/riverguard-fallback.db'
-if IS_VERCEL and STORAGE_BACKEND != 'vercel_blob':
-    raise RuntimeError('Vercel requires STORAGE_BACKEND=vercel_blob for persistent evidence.')
+PERSISTENT_STORAGE = IS_VERCEL and STORAGE_BACKEND == 'vercel_blob'
+if IS_VERCEL and not PERSISTENT_STORAGE:
+    UPLOAD_DIR = Path('/tmp/riverguard-uploads')
 BLOB_READ_WRITE_TOKEN = os.getenv('BLOB_READ_WRITE_TOKEN', '')
 # Leave room for multipart headers below Vercel's 4.5 MB request limit.
 MAX_IMAGE_BYTES = (4 if IS_VERCEL else 5) * 1024 * 1024

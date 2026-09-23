@@ -45,9 +45,10 @@ def test_vercel_uses_temporary_database_fallback_when_postgres_is_missing(monkey
     assert config.PERSISTENT_DATABASE is False
 
 
-def test_vercel_cannot_silently_use_ephemeral_uploads(monkeypatch):
-    with pytest.raises(RuntimeError, match='persistent evidence'):
-        load_config(monkeypatch, VERCEL='1', DATABASE_URL='postgresql://test:password@localhost/db', STORAGE_BACKEND='local')
+def test_vercel_uses_temporary_upload_fallback_when_blob_is_missing(monkeypatch):
+    config = load_config(monkeypatch, VERCEL='1', DATABASE_URL='postgresql://test:password@localhost/db', STORAGE_BACKEND='local')
+    assert config.UPLOAD_DIR == Path('/tmp/riverguard-uploads')
+    assert config.PERSISTENT_STORAGE is False
 
 
 def test_vercel_build_targets_full_repository_and_api_before_spa():
