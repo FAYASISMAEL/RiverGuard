@@ -26,6 +26,8 @@ from backend.app import config
 # Isolate the actual SQLite database under the test directory on every OS.
 config.FALLBACK_DATABASE_PATH = Path.cwd() / 'nested' / 'fallback.db'
 scenario = os.environ['SCENARIO']
+if scenario == 'local':
+    config.DATABASE_URL = ''  # Simulate a fresh install, not the user's legacy DB.
 import psycopg
 failure = psycopg.OperationalError('timeout' if scenario == 'timeout' else 'authentication failed')
 with patch('psycopg.connect', side_effect=failure) if scenario in ['timeout','auth'] else __import__('contextlib').nullcontext():

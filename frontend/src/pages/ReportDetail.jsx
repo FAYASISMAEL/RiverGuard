@@ -122,6 +122,32 @@ export default function ReportDetail({ adminMode = false }) {
                   <Badge value={r.status} />
                 </div>
                 <p>{r.description}</p>
+                {authority && (
+                  <section className="ai-suggestion ai-review">
+                    <h3>AI Suggested Observation</h3>
+                    <p>
+                      {r.ai_detected_category || "No AI suggestion available"}
+                      {r.ai_confidence != null &&
+                        ` — ${Math.round(r.ai_confidence * 100)}% confidence`}
+                    </p>
+                    <p>
+                      <b>Citizen final category:</b>{" "}
+                      {r.final_category || r.contamination_type}
+                    </p>
+                    <p>
+                      <b>Category source:</b>{" "}
+                      {{
+                        AI_CONFIRMED: "AI suggestion confirmed by citizen",
+                        USER_CORRECTED: "Citizen corrected the suggestion",
+                        MANUAL: "Manually selected",
+                      }[r.category_source] || "Manually selected"}
+                    </p>
+                    <p className="small muted">
+                      Visual suggestion only. Authority verification remains
+                      separate.
+                    </p>
+                  </section>
+                )}
                 <h3>{(r.image_urls || []).length} Evidence Images</h3>
                 <EvidenceGallery
                   images={(r.image_urls || []).map((url, i) => ({

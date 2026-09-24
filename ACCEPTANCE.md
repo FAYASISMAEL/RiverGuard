@@ -36,3 +36,11 @@ Source geometry is community OpenStreetMap data, not an official hydrological su
 - Production backend/API type checking with the project interpreter passed (zero errors/warnings), and frontend production build passed. A broader default-interpreter scan also reported existing development-script typing/import issues outside the production check.
 - Fallback health identifies `sqlite-temp` and temporary persistence. Photos still require Blob on Vercel. Session/report data is instance-local, not migrated from PostgreSQL, and not guaranteed across cold starts or deployments.
 - These are local simulations, not a new live Vercel deployment. The earlier Vercel authentication/deployment limitations remain unresolved.
+
+## Evidence-first AI upgrade
+
+- 63 backend tests passed, including 14 classifier/provider-contract and metadata persistence checks.
+- Eight browser workflows passed: existing reporting/admin regression journeys plus multi-image AI confirmation/correction, photo retention between steps, low-confidence/manual choice, stale-response handling, and AI outage submission.
+- Production frontend build, production backend type checking, and static deployment checks passed.
+- Desktop/mobile evidence layouts were rendered and inspected; mobile had no horizontal overflow. Screenshots: frontend/test-results/ai-evidence-desktop.png and ai-evidence-mobile.png.
+- Provider responses in automated tests are controlled fixtures, not live visual inference. Gemini credentials remain to be configured by the user; real-photo accuracy and live Vercel inference are not yet verified. See AI_CLASSIFICATION.md.

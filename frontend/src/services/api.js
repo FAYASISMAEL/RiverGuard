@@ -93,6 +93,7 @@ export const categories = [
   "Water Discoloration",
   "Foam",
   "Bad Odour",
+  "Other / Unclear",
   "Other",
 ];
 export const dateLabel = (value) =>

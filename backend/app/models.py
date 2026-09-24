@@ -26,6 +26,16 @@ class Report(Base):
     timeline: Mapped[list] = mapped_column(JSON, default=list)
     case_file: Mapped['CaseFile | None'] = relationship(back_populates='report', uselist=False)
     images: Mapped[list['ReportImage']] = relationship(order_by='ReportImage.position', cascade='all, delete-orphan')
+    classification: Mapped['ReportClassification | None'] = relationship(uselist=False, cascade='all, delete-orphan')
+
+class ReportClassification(Base):
+    __tablename__ = 'report_classifications'
+    report_id: Mapped[str] = mapped_column(ForeignKey('reports.id'), primary_key=True)
+    ai_detected_category: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    ai_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    final_category: Mapped[str] = mapped_column(String(80))
+    category_source: Mapped[str] = mapped_column(String(30))
+    image_results: Mapped[list] = mapped_column(JSON, default=list)
 
 class ReportImage(Base):
     __tablename__ = 'report_images'

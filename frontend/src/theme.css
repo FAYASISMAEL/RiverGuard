@@ -630,3 +630,15 @@ footer {
     flex-wrap: wrap;
   }
 }
+
+/* Evidence-first reporting keeps the optional suggestion separate from review. */
+.stepper.four-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ai-suggestion { margin: 22px 0; padding: 22px; border: 1px solid #e4cda8; border-radius: 16px; background: #fff8eb; }
+.ai-suggestion h3 { margin: 10px 0; }
+.ai-suggestion p { margin: 10px 0; }
+.ai-review { margin-top: 22px; }
+@media (max-width: 640px) {
+  .stepper.four-steps { gap: 6px; }
+  .four-steps > div { flex-direction: column; gap: 7px; font-size: 10px; text-align: center; }
+  .ai-suggestion { padding: 16px; }
+}

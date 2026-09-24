@@ -126,3 +126,7 @@ The active database is probed before database-backed requests. If PostgreSQL bec
 Fallback stays selected for that instance's lifetime. A new instance tries PostgreSQL again. Temporary files and database-backed sessions can disappear on cold starts; requests reaching another instance may need a new login and cannot see the first instance's temporary reports. PostgreSQL remains necessary for reliable shared production data. Databases are not automatically merged or migrated.
 
 Photo storage is separate: Vercel uploads still require public Blob storage. Reports without photos and admin operations can use SQLite without Blob.
+
+## Optional evidence classification
+
+Set backend-only GEMINI_API_KEY, AI_PROVIDER, AI_MODEL, and AI_CONFIDENCE_THRESHOLD as described in [AI_CLASSIFICATION.md](AI_CLASSIFICATION.md). Missing AI credentials never block manual reporting. Redeploy after setting the key; never expose it through VITE_* variables.

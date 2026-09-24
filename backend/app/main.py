@@ -26,6 +26,7 @@ from .river_impact_engine.snap_engine import ProximityError
 from .services import create_report, serialize, repeats, generate_alerts, event, change_status
 from .auth import require_admin as authority, router as auth_router
 from .admin import router as admin_router
+from .ai import router as ai_router
 
 _startup_lock = Lock()
 
@@ -56,6 +57,7 @@ app = FastAPI(title='RiverGuard API', version='1.0.0', lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_credentials=True, allow_methods=['GET','POST','PATCH'], allow_headers=['Content-Type','X-CSRF-Token'])
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(ai_router)
 
 @app.middleware('http')
 async def serverless_startup(request, call_next):
@@ -118,7 +120,7 @@ async def unexpected_error(request: Request, exc: Exception):
 
 @app.get('/api/config')
 def public_config():
-    return {'max_images_per_report':config.MAX_IMAGES_PER_REPORT,'max_image_bytes':config.MAX_IMAGE_BYTES,'accepted_image_types':['image/jpeg','image/png','image/webp']}
+    return {'max_images_per_report':config.MAX_IMAGES_PER_REPORT,'max_image_bytes':config.MAX_IMAGE_BYTES,'accepted_image_types':['image/jpeg','image/png','image/webp'], 'ai_confidence_threshold':config.AI_CONFIDENCE_THRESHOLD, 'ai_enabled':config.AI_PROVIDER == 'gemini' and bool(config.GEMINI_API_KEY)}
 
 @app.get('/api/health')
 def health():

@@ -16,6 +16,10 @@ UPLOAD_DIR = Path('/tmp/riverguard-uploads') if IS_VERCEL else project_path(os.g
 DATABASE_URL = next((value for key in ('DATABASE_URL', 'POSTGRES_URL', 'POSTGRES_PRISMA_URL', 'NEON_DATABASE_URL') if (value := os.getenv(key, '').strip())), '')
 DATABASE_CONFIGURED = bool(DATABASE_URL)
 FALLBACK_DATABASE_PATH = Path('/tmp/riverguard.db') if IS_VERCEL else ROOT / 'data' / 'riverguard.db'
+# Preserve databases created by earlier local versions. New installations still
+# use data/riverguard.db, and cloud fallback remains confined to /tmp.
+if not DATABASE_URL and not IS_VERCEL and (ROOT / 'riverguard.db').is_file():
+    DATABASE_URL = f'sqlite:///{ROOT / "riverguard.db"}'
 if DATABASE_URL.startswith(('postgres://', 'postgresql://')):
     DATABASE_URL = 'postgresql+psycopg://' + DATABASE_URL.split('://', 1)[1]
 STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'vercel_blob' if IS_VERCEL else 'local')
@@ -42,6 +46,12 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin@123')
 SESSION_HOURS = int(positive_setting('ADMIN_SESSION_HOURS', 8, integer=True))
 COOKIE_SECURE = IS_VERCEL or os.getenv('COOKIE_SECURE', 'false').lower() == 'true'
 MAX_IMAGES_PER_REPORT = min(50, int(positive_setting('MAX_IMAGES_PER_REPORT', 5, integer=True)))
+AI_PROVIDER = os.getenv('AI_PROVIDER', 'gemini').lower()
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+AI_MODEL = os.getenv('AI_MODEL', 'gemini-3.8-flash')
+AI_CONFIDENCE_THRESHOLD = min(1.0, positive_setting('AI_CONFIDENCE_THRESHOLD', 0.75))
+AI_TIMEOUT_SECONDS = min(20.0, positive_setting('AI_TIMEOUT_SECONDS', 20.0))
+AI_MAX_BATCH_BYTES = (4 if IS_VERCEL else 20) * 1024 * 1024
 CORS_ORIGINS = [origin.strip().rstrip('/') for origin in os.getenv(
     'CORS_ORIGINS', os.getenv('ALLOWED_ORIGINS',
     'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174'

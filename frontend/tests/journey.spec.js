@@ -62,12 +62,6 @@ test("three photos: river click → citizen history → admin case → emergency
   await page
     .getByRole("link", { name: "Report Observation →", exact: true })
     .click();
-  await page
-    .getByLabel("Description")
-    .fill(
-      "SAMPLE E2E: three evidence photos of a dead fish observation for demonstration.",
-    );
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByLabel("Evidence photos").setInputFiles(photos);
   await expect(page.locator(".evidence-grid img")).toHaveCount(3);
   await page
@@ -76,12 +70,17 @@ test("three photos: river click → citizen history → admin case → emergency
   await expect(page.locator(".evidence-grid img")).toHaveCount(2);
   await page.getByLabel("Evidence photos").setInputFiles(photos[1]);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page
+    .getByLabel("Description")
+    .fill(
+      "SAMPLE E2E: three evidence photos of a dead fish observation for demonstration.",
+    );
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByText(/Nearest River Segment:/)).toBeVisible();
   await page.screenshot({
     path: "test-results/river-selection.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page
     .getByRole("button", { name: "Submit observation", exact: true })
@@ -242,10 +241,6 @@ test("responsive pages, demo route, error states and evidence validation", async
     "Could not reach the server",
   );
   await page.goto("/report");
-  await page
-    .getByLabel("Description")
-    .fill("Test invalid evidence selection in the browser.");
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByLabel("Evidence photos").setInputFiles({
     name: "bad.txt",
     mimeType: "text/plain",
@@ -309,10 +304,10 @@ test("visual alignment at upstream, middle, tributary, confluence, coastal and n
     coord: [lon, lat],
   } of fixtures) {
     await page.goto(`/report?lat=${lat}&lon=${lon}`);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page
       .getByLabel("Description")
       .fill("SAMPLE alignment check at " + name + " river location.");
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page.getByText(/Nearest River Segment:/)).toBeVisible();
     await expect(page.locator("path[data-segment-id]").first()).toBeAttached();

@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 from typing import Literal
 from pydantic import BaseModel, Field, field_validator
+from .image_classifier import Prediction
 
-Category = Literal['Industrial Discharge', 'Sewage', 'Oil / Fuel', 'Plastic / Solid Waste', 'Agricultural Runoff', 'Dead Fish', 'Water Discoloration', 'Foam', 'Bad Odour', 'Other']
+Category = Literal['Industrial Discharge', 'Sewage', 'Oil / Fuel', 'Plastic / Solid Waste', 'Agricultural Runoff', 'Dead Fish', 'Water Discoloration', 'Foam', 'Bad Odour', 'Other', 'Other / Unclear']
 Status = Literal['UNDER REVIEW', 'VERIFIED', 'REJECTED', 'RESOLVED']
 
 class Location(BaseModel):
@@ -17,6 +18,7 @@ class ReportInput(Location):
     contact: str = Field(default='', max_length=200)
     image_url: str | None = None
     image_urls: list[str] = Field(default_factory=list, max_length=50)
+    ai_image_results: list[Prediction] = Field(default_factory=list, max_length=50)
 
     @field_validator('description')
     @classmethod

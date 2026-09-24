@@ -6,6 +6,19 @@ from sqlalchemy import select
 from datetime import timedelta
 import pytest
 
+@pytest.mark.parametrize('host', ['localhost', '127.0.0.1'])
+def test_proxy_preserves_same_origin_on_alternate_vite_port(host):
+    origin = f'http://{host}:5175'
+    with TestClient(app, base_url=origin) as client:
+        result = client.post('/api/admin/login', headers={'Origin':origin}, json={'username':'admin123','password':'admin@123'})
+        assert result.status_code == 200, result.text
+        csrf = result.json()['csrf_token']
+        rid = client.post('/api/demo').json()['id']
+        path = f'/api/admin/reports/{rid}/opened'
+        assert client.post(path, headers={'Origin':origin,'X-CSRF-Token':csrf}).status_code == 200
+        assert client.post(path, headers={'Origin':origin}).status_code == 403
+        assert client.post(path, headers={'Origin':'https://untrusted.example','X-CSRF-Token':csrf}).status_code == 403
+
 @pytest.mark.parametrize('origin', ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'])
 def test_local_frontend_origins_support_login_session_and_logout(origin):
     with TestClient(app) as client:
