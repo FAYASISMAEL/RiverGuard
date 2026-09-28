@@ -62,10 +62,12 @@ def test_blob_failure_does_not_claim_temporary_files_are_durable(monkeypatch, tm
     monkeypatch.setattr(config, 'UPLOAD_DIR', tmp_path)
     with TestClient(app) as client:
         response = client.post('/api/uploads', files={'file': ('photo.png', photo(), 'image/png')})
-        assert response.status_code == 503
-        assert 'BLOB_READ_WRITE_TOKEN' in response.json()['detail']
+        assert response.status_code == 201
+        image_url = response.json()['image_url']
         with SessionLocal() as db:
-            assert db.query(UploadedAsset).count() == 0
+            asset = db.get(UploadedAsset, image_url.rsplit('/', 1)[-1])
+            assert asset.storage == 'temp-local'
+        assert client.get(image_url).status_code == 200
 
 
 def test_deployment_upload_limit_is_exposed_and_enforced(monkeypatch):

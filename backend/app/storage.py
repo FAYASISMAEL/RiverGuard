@@ -35,9 +35,7 @@ class BlobStorageAdapter:
 def storage_adapter():
     if config.STORAGE_BACKEND == 'vercel_blob' and config.BLOB_READ_WRITE_TOKEN:
         return BlobStorageAdapter(config.BLOB_READ_WRITE_TOKEN)
-    if not config.IS_VERCEL and config.STORAGE_BACKEND == 'local':
-        return LocalStorageAdapter(config.UPLOAD_DIR)
-    raise HTTPException(503, 'Photo storage is unavailable. Connect a public Vercel Blob store and set BLOB_READ_WRITE_TOKEN. Your report has not been submitted.')
+    return LocalStorageAdapter(config.UPLOAD_DIR)
 
 
 def valid_name(name: str) -> bool:
@@ -50,7 +48,7 @@ def save_evidence(name: str, content: bytes, db) -> str:
     storage = adapter.storage_name
     try:
         target = adapter.save_file(name, content)
-        if storage == 'temp-local' and not config.IS_VERCEL:
+        if storage == 'temp-local' and config.STORAGE_BACKEND == 'local':
             storage = 'local'
     except Exception as exc:
         log_failure('Evidence storage failed', exc)
@@ -81,6 +79,6 @@ def evidence_response(name: str, db):
     asset = db.get(UploadedAsset, name)
     if asset and asset.storage == 'vercel_blob':
         return RedirectResponse(asset.url, status_code=307)
-    if not config.IS_VERCEL and (config.UPLOAD_DIR / name).is_file():
+    if asset and (config.UPLOAD_DIR / name).is_file():
         return FileResponse(config.UPLOAD_DIR / name, media_type='image/jpeg')
     raise HTTPException(404, 'Photo not found')
